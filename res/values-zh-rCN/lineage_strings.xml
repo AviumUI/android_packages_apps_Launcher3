@@ -44,4 +44,8 @@
     <string name="paused_apps_dialog_message">%1$s 在启动器中被手动暂停</string>
     <string name="paused_apps_drop_target_label">暂停应用</string>
 
+     <!-- Kill App recents action shortcut -->
+    <string name="recent_task_option_kill_app">强行停止</string>
+    <string name="recents_app_killed">应用已强行停止</string>
+
 </resources>
