@@ -120,11 +120,10 @@
     <string name="show_top_shadow_summary">在状态栏下方添加阴影</string>
 
     <!-- About info -->
-    <string name="about_app_subtitle">基于 AOSP Launcher3</string>
     <string name="about_app_version_text">版本</string>
     <string name="about_thanks_cat">特别感谢</string>
     <string name="about">关于</string>
-    <string name="about_summary">关于 DerpLauncher 的信息</string>
+    <string name="about_summary">关于 AviumLauncher 的信息</string>
 
     <!-- Haptics on DT2S -->
     <string name="pref_haptics_on_dt_gestures_title">双击手势触觉反馈</string>
@@ -234,7 +233,7 @@
     <string name="show_quickspace_summary">在主屏幕顶端显示</string>
 
     <!-- QuickSpace: QuickEvent: Device Intro Event -->
-    <string name="quick_event_rom_intro_welcome">欢迎使用 DerpFest！</string>
+    <string name="quick_event_rom_intro_welcome">欢迎使用 Avium！</string>
     <string name="quick_event_rom_intro_learn">点击此处，尽享乐趣！</string>
 
     <!-- QuickSpace: QuickEvent: Ambient Play -->
@@ -308,8 +307,8 @@
         <item>Have fun!</item>
         <item>Let\'s get this grind, gamer!</item>
         <item>\u003C\u003C\u003C\u003C\u003C\u003C\u003C HEAD</item>
-        <item>You need DerpLauncher Premium to see this</item>
-        <item>You need DerpFest Premium to see this</item>
+        <item>You need AviumLauncher Premium to see this</item>
+        <item>You need Avium UI Premium to see this</item>
         <item>A carbonized owl statue</item>
         <item>...cause 404 sucks!</item>
         <item>Eat your veggies and send logs</item>
@@ -335,7 +334,7 @@
         <item>nice</item>
         <item>ツ</item>
         <item>#StayDerped \m/</item>
-        <item>DerpFest FTW \m/</item>
+        <item>Avium UI FTW \m/</item>
         <item>What\'s on your mind?</item>
         <item>Got an issue? Don\'t forget a logcat</item>
         <item>Get Derped</item>

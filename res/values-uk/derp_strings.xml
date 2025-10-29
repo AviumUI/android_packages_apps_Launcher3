@@ -2,12 +2,11 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
   <string name="abbrev_wday_month_day_no_year">EEE, MMM d</string>
   <string name="about">Про програму</string>
-  <string name="about_app_subtitle">Базовано на Launcher3 з AOSP</string>
   <!-- About info -->
-  <string name="about_app_title">DerpLauncher</string>
+  <string name="about_app_title">AviumLauncher</string>
   <string name="about_app_version_text">Версія</string>
   <string name="about_app_version_value">BP2A.250605.015</string>
-  <string name="about_summary">Інфо про DerpLauncher</string>
+  <string name="about_summary">Інфо про AviumLauncher</string>
   <string name="about_thanks_cat">Особлива подяка</string>
   <!-- Lock -->
   <string name="action_lock">Заблокувати/розблокувати програму</string>
@@ -27,7 +26,7 @@
   <!-- All Apps Blur -->
   <string name="blur_category_title">Ефекти розмиття</string>
   <!-- Application name -->
-  <string name="derp_app_name">DerpLauncher</string>
+  <string name="derp_app_name">AviumLauncher</string>
   <string name="dev_options_summary">Вмикайте деякі приховані функції на свій страх і ризик</string>
   <!-- Developer options -->
   <string name="dev_options_title">Для розробників</string>
@@ -138,7 +137,7 @@
   <string name="quick_event_ambient_song_artist">%1$s від %2$s</string>
   <string name="quick_event_rom_intro_learn">Щоб повеселитися тисніть тут!</string>
   <!-- QuickSpace: QuickEvent: Device Intro Event -->
-  <string name="quick_event_rom_intro_welcome">Ласкаво просимо до DerpFest!</string>
+  <string name="quick_event_rom_intro_welcome">Ласкаво просимо до Avium UI</string>
   <string name="quickspace_app_memory_info_summary">Показувати використання пам\'яті рекомендованими/недозволеними програмами в повідомленнях</string>
   <string name="quickspace_app_memory_info_title">Інформація про пам\'ять програм</string>
   <string name="quickspace_category_title">Quickspace</string>
@@ -232,8 +231,8 @@
     <item>Веселись!</item>
     <item>Вперед до грінду, геймер!</item>
     <item>\u003C\u003C\u003C\u003C\u003C\u003C\u003C HEAD</item>
-    <item>Вам потрібен DerpLauncher Premium, щоб побачити це</item>
-    <item>Вам потрібен DerpFest Premium, щоб побачити це</item>
+    <item>Вам потрібен AviumLauncher Premium, щоб побачити це</item>
+    <item>Вам потрібен Avium Premium, щоб побачити це</item>
     <item>Карбонізована статуя сови</item>
     <item>...бо 404 - це відстій!</item>
     <item>Їжте овочі та надсилайте логи</item>
@@ -259,7 +258,7 @@
     <item>найс</item>
     <item>ツ</item>
     <item>#StayDerped m/</item>
-    <item>DerpFest - БОМБА, чувак!</item>
+    <item>Avium UI - БОМБА, чувак!</item>
     <item>Що у вас на думці?</item>
     <item>Є проблема? Не забудьте логи</item>
     <item>Дерпнись</item>
@@ -331,9 +330,9 @@
   <string name="unlock_app">Розблоковані додатки в меню \"Нещодавні\"</string>
   <string name="updating_launcher_components">Перезапуск лаунчера для оновлення його компонентів...</string>
   <string-array name="welcome_message_variants">
-    <item>Дякуємо, що обрали DerpFest</item>
+    <item>Дякуємо, що обрали Avium UI</item>
     <item>Найкраща прошивка в світі</item>
-    <item>DerpFest - БОМБА!</item>
+    <item>Avium UI - БОМБА!</item>
     <item>Гарного дня</item>
     <item>Привітайтеся з нами в Telegram</item>
     <item>#StayDerped</item>
