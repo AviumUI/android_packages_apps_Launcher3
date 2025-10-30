@@ -162,7 +162,6 @@ public class TouchInteractionService extends Service {
     private static final String TAG2 = "LongPress";
     private static final long HANDLE_LONG_PRESS_TIMEOUT = 500;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
-    private boolean mInterceptHandleLongPress;
     private static final String EXTHM_OCR = "org.exthm.rmoonorc";
     private static final String EXTHM_OCR_ACTIVITY = "org.exthm.rmoonorc.MainActivity";
 
@@ -188,8 +187,7 @@ public class TouchInteractionService extends Service {
         int bottomOffset = (int)(8 * density);
         float y = e.getY();
         int screenH = getResources().getDisplayMetrics().heightPixels;
-        return y >= screenH - bottomOffset - height
-            && y <= screenH - bottomOffset;
+        return y >= (screenH - bottomOffset - height) && y <= (screenH - bottomOffset);
     }
 
     /**
@@ -886,18 +884,18 @@ public class TouchInteractionService extends Service {
      */
 
     public void onInputEvent(InputEvent ev) {
-//        Log.d(TAG2, "onInputEvent(InputEvent ev)");
-        if (!(ev instanceof MotionEvent)) 
+        if (!(ev instanceof MotionEvent)) {
+            superOnInputEvent(ev);
             return;
+        }
 
         MotionEvent e = (MotionEvent) ev;
         int action = e.getActionMasked();
 
         switch (action) {
             case MotionEvent.ACTION_DOWN:
-            if (isInHandleRegion(e)) {
-                mInterceptHandleLongPress = true;
-                mHandler.postDelayed(mHandleLongPressRunnable, HANDLE_LONG_PRESS_TIMEOUT);
+                if (isInHandleRegion(e)) {
+                    mHandler.postDelayed(mHandleLongPressRunnable, HANDLE_LONG_PRESS_TIMEOUT);
                 }
                 break;
             case MotionEvent.ACTION_MOVE:
@@ -910,25 +908,17 @@ public class TouchInteractionService extends Service {
                 mHandler.removeCallbacks(mHandleLongPressRunnable);
                 break;
         }
-
-        if (mInterceptHandleLongPress) {
-            mInterceptHandleLongPress = false;
-            return;
-            }
         superOnInputEvent(ev);
     }
 
     private final Runnable mHandleLongPressRunnable = new Runnable() {
         @Override
         public void run() {
-//            Log.d(TAG2, "start app");
-            Intent intent = new Intent();
-            intent.setComponent(new ComponentName(
-                EXTHM_OCR,
-                EXTHM_OCR_ACTIVITY));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            boolean isScreenOCRenable = SystemProperties.getBoolean("persist.exthm.screenocr", false);
-            if(isScreenOCRenable){
+            boolean isScreenOCRenable = SystemProperties.getBoolean("persist.avium.screenocr", false);
+            if (isScreenOCRenable) {
+                Intent intent = new Intent();
+                intent.setComponent(new ComponentName(EXTHM_OCR, EXTHM_OCR_ACTIVITY));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(intent);
             }
             
