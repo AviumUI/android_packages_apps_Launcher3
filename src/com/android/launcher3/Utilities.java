@@ -1372,13 +1372,16 @@ public final class Utilities {
 
     public static void startLmoFreeform(Context context, ComponentName activity,
             int userId, int taskId) {
-        final Intent intent = new Intent(FREEFORM_INTENT)
-                .setPackage(FREEFORM_PACKAGE)
-                .putExtra("packageName", activity.getPackageName())
-                .putExtra("activityName", activity.getClassName())
-                .putExtra("userId", userId)
-                .putExtra("taskId", taskId);
-        context.sendBroadcast(intent);
+        String packageName = activity.getPackageName();
+        final Intent intent = context.getPackageManager().getLaunchIntentForPackage(packageName);
+
+        if (intent == null) {
+            return;
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        final ActivityOptions options = ActivityOptions.makeBasic();
+        options.setLaunchWindowingMode(101);
+        context.startActivityAsUser(intent, options.toBundle(), UserHandle.of(userId));
     }
 
     public static void startLmoFreeform(Context context, ComponentName activity, int userId) {
