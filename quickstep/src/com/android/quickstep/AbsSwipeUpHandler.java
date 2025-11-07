@@ -105,6 +105,17 @@ import android.window.PictureInPictureSurfaceTransaction;
 import android.window.TransitionInfo;
 import android.window.WindowAnimationState;
 
+import android.app.ActivityOptions;
+import android.content.ComponentName;
+import android.content.Intent;
+import android.os.UserHandle;
+import android.app.ActivityTaskManager;
+
+import com.android.quickstep.views.TaskView;
+import com.android.systemui.shared.recents.model.Task;
+import com.android.quickstep.GestureState;
+import com.android.quickstep.TopTaskTracker.CachedTaskInfo;
+
 import androidx.annotation.CallSuper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -229,6 +240,9 @@ public abstract class AbsSwipeUpHandler<
     private boolean mRecentsViewScrollLinked = false;
     // The previous task view type before the user quick switches between tasks
     private TaskViewType mPreviousTaskViewType;
+    //Ext add
+    private static final float CUSTOM_GESTURE_TRIGGER_THRESHOLD = 3.5f;
+    private static final String ACTION_PIN_LAST_APP = "org.avium.PINNED_LAST_APP";
 
     private static int FLAG_COUNT = 0;
     private static int getNextStateFlag(String name) {
@@ -1568,20 +1582,31 @@ public abstract class AbsSwipeUpHandler<
             PointF velocityPxPerMs,
             boolean isCancel,
             boolean horizontalTouchSlopPassed) {
+
+        GestureEndTarget calculatedEndTarget = calculateEndTarget(
+                velocityPxPerMs, endVelocityPxPerMs, isFling, isCancel, horizontalTouchSlopPassed);
+        final GestureEndTarget finalEndTarget;
+        final float progress = mCurrentShift.value;
+        boolean isAviumGestureEnable = android.os.SystemProperties.getBoolean("persist.avium.launchergesture", false);
+        if (progress > CUSTOM_GESTURE_TRIGGER_THRESHOLD && isAviumGestureEnable) {
+            onAviumFloatWindowGesture();
+            finalEndTarget = GestureState.GestureEndTarget.HOME;
+        } else {
+            finalEndTarget = calculatedEndTarget;
+        }
         long duration = MAX_SWIPE_DURATION;
         float currentShift = mCurrentShift.value;
-        final GestureEndTarget endTarget = calculateEndTarget(
-                velocityPxPerMs, endVelocityPxPerMs, isFling, isCancel, horizontalTouchSlopPassed);
+
         // Set the state, but don't notify until the animation completes
-        mGestureState.setEndTarget(endTarget, false /* isAtomic */);
-        mAnimationFactory.setEndTarget(endTarget);
+        mGestureState.setEndTarget(finalEndTarget, false /* isAtomic */);
+        mAnimationFactory.setEndTarget(finalEndTarget);
 
         if (mIsTransientTaskbar && mContainerInterface.getTaskbarInteractor() != null) {
             mContainerInterface.getTaskbarInteractor()
-                    .setUserIsNotGoingHome(endTarget != HOME);
+                    .setUserIsNotGoingHome(finalEndTarget != HOME);
         }
 
-        float endShift = endTarget.isLauncher ? 1 : 0;
+        float endShift = finalEndTarget.isLauncher ? 1 : 0;
         final float startShift;
         if (!isFling) {
             long expectedDuration = Math.abs(Math.round((endShift - currentShift)
@@ -1602,21 +1627,21 @@ public abstract class AbsSwipeUpHandler<
             }
         }
         Interpolator interpolator;
-        STATE state = mContainerInterface.stateFromGestureEndTarget(endTarget);
+        STATE state = mContainerInterface.stateFromGestureEndTarget(finalEndTarget);
         if (isKeyboardTaskFocusPending()) {
             interpolator = EMPHASIZED;
         } else if (state.displayOverviewTasksAsGrid(mDp)) {
             interpolator = ACCELERATE_DECELERATE;
-        } else if (endTarget == RECENTS) {
+        } else if (finalEndTarget == RECENTS) {
             interpolator = OVERSHOOT_1_2;
         } else {
             interpolator = DECELERATE;
         }
 
-        if (endTarget.isLauncher) {
+        if (finalEndTarget.isLauncher) {
             mInputConsumerProxy.enable();
         }
-        if (endTarget == HOME) {
+        if (finalEndTarget == HOME) {
             boolean isPinnedTaskbar = !mIsTransientTaskbar;
             boolean isThreeButton = DisplayController.getNavigationMode(mContext)
                     == NavigationMode.THREE_BUTTONS;
@@ -1628,10 +1653,7 @@ public abstract class AbsSwipeUpHandler<
                     : StaggeredWorkspaceAnim.DURATION_MS;
             SystemUiProxy.INSTANCE.get(mContext).updateContextualEduStats(
                     mGestureState.isTrackpadGesture(), GestureType.HOME);
-        } else if (endTarget == REJECT_HOME) {
-            interpolator = ACCELERATE_DECELERATE;
-            duration = Math.max(REJECT_HOME_ANIM_DURATION_MS, duration);
-        } else if (endTarget == RECENTS) {
+        } else if (finalEndTarget == RECENTS) {
             if (mRecentsView != null) {
                 int nearestPage = mRecentsView.getDestinationPage();
                 if (nearestPage == INVALID_PAGE) {
@@ -1658,7 +1680,7 @@ public abstract class AbsSwipeUpHandler<
                 SystemUiProxy.INSTANCE.get(mContext).updateContextualEduStats(
                         mGestureState.isTrackpadGesture(), GestureType.OVERVIEW);
             }
-        } else if (endTarget == LAST_TASK && mRecentsView != null
+        } else if (finalEndTarget == LAST_TASK && mRecentsView != null
                 && mRecentsView.getNextPage() != mRecentsView.getRunningTaskIndex()) {
             mRecentsView.snapToPage(mRecentsView.getRunningTaskIndex(), Math.toIntExact(duration));
         }
@@ -1695,7 +1717,7 @@ public abstract class AbsSwipeUpHandler<
         Interpolator finalInterpolator = interpolator;
         runOnRecentsAnimationAndLauncherBound(() -> {
             animateGestureEnd(
-                startShift, endShift, finalDuration, finalInterpolator, endTarget, velocityPxPerMs);
+                startShift, endShift, finalDuration, finalInterpolator, finalEndTarget, velocityPxPerMs);
         });
     }
 
@@ -3211,5 +3233,50 @@ public abstract class AbsSwipeUpHandler<
     public interface Factory {
         @Nullable
         AbsSwipeUpHandler<?, ?, ?> newHandler(GestureState gestureState, long touchTimeMs);
+    }
+
+    private void onAviumFloatWindowGesture() { 
+        Log.d("AviumLauncher", "Custom gesture triggered. Getting current task to launch in mini freeform."); 
+
+        if (mContext == null) { 
+            return; 
+        } 
+
+        final ActivityManager am = (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE); 
+        if (am == null) { 
+            return; 
+        } 
+        final List<ActivityManager.RecentTaskInfo> recentTasks = 
+                am.getRecentTasks(2, ActivityManager.RECENT_WITH_EXCLUDED); 
+
+        if (recentTasks == null || recentTasks.isEmpty()) { 
+            return; 
+        } 
+        final ActivityManager.RecentTaskInfo currentTask = recentTasks.get(0); 
+        final int taskId = currentTask.id; 
+
+        final String launcherPackageName = mContext.getPackageName(); 
+        if (currentTask.baseIntent != null && launcherPackageName.equals(currentTask.baseIntent.getComponent().getPackageName())) { 
+            return; 
+        } 
+
+        if (taskId <= 0) { 
+            return; 
+        } 
+
+        try {
+            String packageName = currentTask.baseIntent.getComponent().getPackageName();
+            String activityName = currentTask.baseIntent.getComponent().getClassName();
+            int userId = currentTask.userId;
+            
+            Intent intent = new Intent("org.avium.LAUNCHER_MINI_WINDOW");
+            intent.putExtra("packageName", packageName);
+            intent.putExtra("activityName", activityName);
+            intent.putExtra("userId", userId);
+            mContext.sendBroadcast(intent);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
