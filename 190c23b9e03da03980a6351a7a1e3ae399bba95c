@@ -20,6 +20,23 @@
     {
       "unresolved": true,
       "key": {
+        "uuid": "5bcf2294_c6c06e1b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2026-01-09T17:34:48Z",
+      "side": 1,
+      "message": "could not build\n\npackages/apps/Launcher3/src/com/android/launcher3/allapps/search/AppsSearchContainerLayout.java:207: error: cannot find symbol                                                                                  Toast.makeText(getContext(), getContext().getString(R.string.search_service_unavailable), Toast.LENGTH_SHORT).show();                                                                                                                                                     ^\n  symbol: variable Toast                                                                packages/apps/Launcher3/src/com/android/launcher3/allapps/search/AppsSearchContainerLayout.java:207: error: cannot find symbol                                                                                  Toast.makeText(getContext(), getContext().getString(R.string.search_service_unavailable), Toast.LENGTH_SHORT).show();                                                           ^                                                         symbol: variable Toast                                                                2 errors",
+      "revId": "190c23b9e03da03980a6351a7a1e3ae399bba95c",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    },
+    {
+      "unresolved": true,
+      "key": {
         "uuid": "cce727c2_92ed519b",
         "filename": "src/com/android/launcher3/allapps/search/AppsSearchContainerLayout.java",
         "patchSetId": 1
