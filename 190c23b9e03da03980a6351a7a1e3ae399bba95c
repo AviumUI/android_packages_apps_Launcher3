@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "cce727c2_92ed519b",
+        "filename": "src/com/android/launcher3/allapps/search/AppsSearchContainerLayout.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 196,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2026-01-09T17:27:38Z",
+      "side": 1,
+      "message": "White spaces...?",
+      "revId": "190c23b9e03da03980a6351a7a1e3ae399bba95c",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "4a0c6a08_3144fa2a",
+        "filename": "src/com/android/launcher3/allapps/search/AppsSearchContainerLayout.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 217,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2026-01-09T17:27:38Z",
+      "side": 1,
+      "message": "And this also",
+      "revId": "190c23b9e03da03980a6351a7a1e3ae399bba95c",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    }
+  ]
+}
