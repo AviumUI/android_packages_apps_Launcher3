@@ -37,6 +37,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
 import android.view.ViewGroup.MarginLayoutParams;
+import android.widget.Toast;
 
 import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.ExtendedEditText;
@@ -194,22 +195,27 @@ public class AppsSearchContainerLayout extends ExtendedEditText
                             return true;
                         }
                     }
-                    
+
                     if (leftDrawable != null) {
                         int leftDrawableWidth = leftDrawable.getBounds().width();
                         if (touchX <= (leftDrawableWidth + paddingLeft + searchSideMargin)) {
                             Intent gIntent = getContext().getPackageManager().getLaunchIntentForPackage(Utilities.GSA_PACKAGE);
-                            gIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                            getContext().startActivity(gIntent);
+                            if (gIntent != null)
+                            {
+                                gIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                getContext().startActivity(gIntent);
+                            } else {
+                                Toast.makeText(getContext(), getContext().getString(R.string.search_service_unavailable), Toast.LENGTH_SHORT).show();
+                            }
                             return true;
                         }
                     }
-                    
-                    int leftBoundary = leftDrawable != null ? 
+
+                    int leftBoundary = leftDrawable != null ?
                         (leftDrawable.getBounds().width() + paddingLeft) : paddingLeft;
-                    int rightBoundary = rightDrawable != null ? 
+                    int rightBoundary = rightDrawable != null ?
                         (getWidth() - rightDrawable.getBounds().width() - paddingEnd) : (getWidth() - paddingEnd);
-                        
+
                     if (touchX > leftBoundary && touchX < rightBoundary) {
                         Intent pixelSearchIntent = getContext().getPackageManager().getLaunchIntentForPackage("rk.android.app.pixelsearch");
                         if (pixelSearchIntent != null) {
