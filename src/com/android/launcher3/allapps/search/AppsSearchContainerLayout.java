@@ -28,6 +28,7 @@ import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.os.SystemProperties;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
 import android.text.method.TextKeyListener;
@@ -67,6 +68,7 @@ public class AppsSearchContainerLayout extends ExtendedEditText
     private final ActivityContext mLauncher;
     private final AllAppsSearchBarController mSearchBarController;
     private final SpannableStringBuilder mSearchQueryBuilder;
+    private final boolean mGappsEnabled = SystemProperties.getBoolean("ro.avium.gms_status.", false);
 
     private ActivityAllAppsContainerView<?> mAppsView;
 
@@ -182,18 +184,22 @@ public class AppsSearchContainerLayout extends ExtendedEditText
                     int paddingEnd = getPaddingEnd();
                     int paddingLeft = getPaddingLeft();
                 
-                    if (rightDrawable != null) {
-                        int rightDrawableWidth = rightDrawable.getBounds().width();
-                        if (touchX >= (getWidth() - rightDrawableWidth - paddingEnd)) {
-                            Intent lensIntent = new Intent();
-                            lensIntent.setAction(Intent.ACTION_VIEW)
-                                    .setComponent(new ComponentName(Utilities.GSA_PACKAGE, Utilities.LENS_ACTIVITY))
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    .setData(Uri.parse(Utilities.LENS_URI))
-                                    .putExtra("LensHomescreenShortcut", true);
-                            getContext().startActivity(lensIntent);
-                            return true;
+                    if (mGappsEnabled) {
+                        if (rightDrawable != null) {
+                            int rightDrawableWidth = rightDrawable.getBounds().width();
+                            if (touchX >= (getWidth() - rightDrawableWidth - paddingEnd)) {
+                                Intent lensIntent = new Intent();
+                                lensIntent.setAction(Intent.ACTION_VIEW)
+                                        .setComponent(new ComponentName(Utilities.GSA_PACKAGE, Utilities.LENS_ACTIVITY))
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        .setData(Uri.parse(Utilities.LENS_URI))
+                                        .putExtra("LensHomescreenShortcut", true);
+                                getContext().startActivity(lensIntent);
+                                return true;
+                            }
                         }
+                    } else {
+                        AppsSearchContainerLayout.this.setCompoundDrawablesRelative(leftDrawable, null, null, null);
                     }
 
                     if (leftDrawable != null) {
