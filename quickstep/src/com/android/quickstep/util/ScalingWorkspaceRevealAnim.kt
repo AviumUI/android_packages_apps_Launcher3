@@ -314,7 +314,8 @@ class ScalingWorkspaceRevealAnim(
     }
 
     private fun addBlurLayer() {
-        if (!Flags.blurredHomeAnimation()) {
+        val isAllowBlurLauncher = android.os.SystemProperties.getBoolean("persist.avium.launcherblur", false)
+        if (!isAllowBlurLauncher) {
             return
         }
         val parent = launcher.dragLayer.viewRootImpl?.surfaceControl ?: return
