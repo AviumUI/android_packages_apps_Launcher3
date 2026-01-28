@@ -50,6 +50,12 @@ import com.android.launcher3.model.data.ItemInfo;
 import com.android.launcher3.model.data.ItemInfoWithIcon;
 import com.android.launcher3.model.data.WorkspaceItemInfo;
 import com.android.launcher3.pm.UserCache;
+import com.android.launcher3.popup.SystemShortcut.AddToHomeScreen;
+import com.android.launcher3.popup.SystemShortcut.BubbleShortcut;
+import com.android.launcher3.popup.SystemShortcut.Install;
+import com.android.launcher3.popup.SystemShortcut.InstallToPrivateProfile;
+import com.android.launcher3.popup.SystemShortcut.UnInstall;
+import com.android.launcher3.popup.SystemShortcut.Widgets;
 import com.android.launcher3.util.ActivityOptionsWrapper;
 import com.android.launcher3.util.ApiWrapper;
 import com.android.launcher3.util.ApplicationInfoWrapper;
@@ -621,6 +627,22 @@ public abstract class SystemShortcut<T extends ActivityContext> extends ItemInfo
         @Override
         public void onClick(View view) {
             dismissTaskMenuView();
+            if (Flags.enableAviumBubbleStarter()) {
+                
+                String packageName = mItemInfo.getTargetPackage();
+                if (packageName == null) {
+                Log.w(TAG, "Bubble launch failed: no package");
+                    return;
+                }
+                Intent broadcast = new Intent("org.avium.LAUNCH_BUBBLE");
+                broadcast.putExtra("package_name", packageName);
+                broadcast.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+                Context context = view.getContext();
+                context.sendBroadcastAsUser(broadcast, UserHandle.ALL);
+
+            } else {
+                // Fallback to Launcher-provided BubbleStarter.
+
             if (mStarter == null) {
                 Log.w(TAG, "starter null!");
                 return;
@@ -643,6 +665,7 @@ public abstract class SystemShortcut<T extends ActivityContext> extends ItemInfo
                 mStarter.showAppBubble(intent, mItemInfo.user, getEntryPoint());
             } else {
                 Log.w(TAG, "unable to bubble, no intent: " + mItemInfo);
+            }
             }
         }
     }
