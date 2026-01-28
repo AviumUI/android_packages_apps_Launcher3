@@ -1,0 +1,9 @@
+package: "com.android.launcher3"
+container: "system_ext"
+
+flag {
+    name: "enable_avium_bubble_starter"
+    namespace: "launcher"
+    description: "Enable Avium bubble starter"
+    bug: "<none>"
+}
