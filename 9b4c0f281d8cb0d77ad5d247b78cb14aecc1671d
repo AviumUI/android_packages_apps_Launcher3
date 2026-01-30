@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f489c4fe_2fa830d5",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2026-01-30T11:02:47Z",
+      "side": 1,
+      "message": "I know this is take lots of ur time, Ginka, but you\u0027d better not submit with these kawaii white spaces",
+      "revId": "9b4c0f281d8cb0d77ad5d247b78cb14aecc1671d",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    }
+  ]
+}
