@@ -259,7 +259,13 @@ public class DeviceProfile {
 
         this.inv = inv;
 
-        mDeviceProperties = DeviceProperties.Factory.createDeviceProperties(
+        Context context = getContext(info, windowBounds.isLandscape()
+                        ? Configuration.ORIENTATION_LANDSCAPE
+                        : Configuration.ORIENTATION_PORTRAIT,
+                windowBounds);
+
+        mDeviceProperties = DeviceProperties.Factory.createDevicePropertiesWithTabletOverride(
+                context,
                 info,
                 windowBounds,
                 transposeLayoutWithOrientation,
@@ -289,10 +295,6 @@ public class DeviceProfile {
                         && wmProxy.isTaskbarDrawnInProcess();
 
         // Some more constants.
-        Context context = getContext(info, isLandscapeOrientation()
-                        ? Configuration.ORIENTATION_LANDSCAPE
-                        : Configuration.ORIENTATION_PORTRAIT,
-                windowBounds);
         final Resources res = context.getResources();
 
         overviewProfile = OverviewProfile.Factory.createOverviewProfile(res);
@@ -1985,7 +1987,13 @@ public class DeviceProfile {
         @VisibleForTesting
         static DisplayOptionSpec createDefaultDisplayOptionSpec(DisplayController.Info info,
                 WindowBounds windowBounds, boolean isMultiDisplay, InvariantDeviceProfile inv) {
-            boolean isTwoPanels = info.isTablet(windowBounds) && isMultiDisplay;
+            // Check user preference for tablet overview style
+            boolean forceTabletStyle = false;
+            if (info.context != null) {
+                forceTabletStyle = LauncherPrefs.get(info.context).get(LauncherPrefs.TABLET_OVERVIEW_STYLE);
+            }
+            boolean isTablet = info.isTablet(windowBounds) || forceTabletStyle;
+            boolean isTwoPanels = isTablet && isMultiDisplay;
             boolean isLandscape = windowBounds.isLandscape();
             return new DisplayOptionSpec(inv, isTwoPanels, isLandscape);
         }
