@@ -326,7 +326,7 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
             )
 
         @JvmField
-        val TABLET_OVERVIEW_STYLE = backedUpItem("pref_tablet_overview_style", false)
+        val TABLET_OVERVIEW_STYLE = nonRestorableItem("pref_tablet_overview_style", false, EncryptionType.DEVICE_PROTECTED)
 
         // Preferences for widget configurations
         @JvmField
