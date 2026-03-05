@@ -17,7 +17,6 @@
 package com.android.launcher3.deviceprofile
 
 import android.content.Context
-import android.os.UserManager
 import com.android.launcher3.LauncherPrefs
 import com.android.launcher3.util.DisplayController
 import com.android.launcher3.util.WindowBounds
@@ -92,15 +91,10 @@ data class DeviceProperties(
             isExternalDisplay: Boolean,
             isGestureMode: Boolean,
         ): DeviceProperties {
-            val isUserUnlocked = 
-            context.getSystemService(UserManager::class.java).isUserUnlocked
             val systemIsTablet = info.isTablet(windowBounds)
             val isRotationAllowed = info.isRotationAllowed()
-            val forceTabletStyle = if (isUserUnlocked) { 
-                LauncherPrefs.get(context).get(LauncherPrefs.TABLET_OVERVIEW_STYLE) 
-            } else {
-                false 
-            }
+            val prefs = LauncherPrefs.get(context)
+            val forceTabletStyle = prefs.get(LauncherPrefs.TABLET_OVERVIEW_STYLE)
             val isTablet = systemIsTablet || forceTabletStyle
 
             val windowX = windowBounds.bounds.left
