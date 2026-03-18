@@ -24,17 +24,28 @@
     <string name="pref_themed_icons_title">套用主題圖示到導覽匣</string>
     <string name="pref_themed_icons_summary">跟隨在主畫面上使用的主題圖示</string>
     <string name="desktop_show_labels">在桌面上顯示圖示標籤</string>
-    <string name="drawer_show_labels">在清單中顯示圖示標籤</string>
+    <string name="drawer_show_labels">在抽屜裡顯示圖示標籤</string>
     <string name="drawer_open_keyboard_title">滑動以開始搜尋</string>
-    <string name="drawer_open_keyboard_summary">當應用程式抽屜變為可見時，開啟鍵盤</string>
-    <string name="trust_apps_manager_name">隱藏與受保護應用程式</string>
-    <string name="trust_apps_auth_manager">解鎖以管理隱藏和受保護的應用程式</string>
-    <string name="trust_apps_auth_open_app">進行身份驗證以開啟 %1$s</string>
+    <string name="drawer_open_keyboard_summary">當應用抽屜可見時開啟鍵盤</string>
+    <string name="trust_apps_manager_name">隱藏和保護應用</string>
+    <string name="trust_apps_auth_manager">解鎖以管理隱藏和受保護的應用</string>
+    <string name="trust_apps_auth_open_app">認證以開啟 %1$s</string>
     <string name="trust_apps_loading">載入中\u2026</string>
     <string name="trust_apps_no_lock_error">請設定安全鎖定畫面以限制應用程式存取權限</string>
     <string name="trust_apps_help">說明</string>
-    <string name="trust_apps_info_hidden">隱藏的應用程式及其小工具隱藏在清單中</string>
-    <string name="trust_apps_info_protected">受保護的應用程式需要從啟動器開啟身份驗證</string>
+    <string name="trust_apps_info_hidden">從抽屜中隱藏應用和其小部件</string>
+    <string name="trust_apps_info_protected">需要經過認證才能從啟動器開啟受保護的應用</string>
     <string name="pref_suggestions_title">建議</string>
-    <string name="pref_suggestions_summary">適用於應用程式導覽匣和主畫面的建議</string>
+    <string name="pref_suggestions_summary">對於應用抽屜 &amp; 主螢幕的建議</string>
+    <string name="pause">暫停</string>
+    <string name="pause_apps_dialog_title">要暫停 %1$s 嗎？</string>
+    <string name="pause_apps_dialog_message">%1$s 的通知將會被暫停</string>
+    <string name="paused_apps_dialog_title">應用已被暫停</string>
+    <string name="paused_apps_dialog_message">%1$s 在啟動器中被手動暫停</string>
+    <string name="paused_apps_drop_target_label">暫停應用</string>
+
+     <!-- Kill App recents action shortcut -->
+    <string name="recent_task_option_kill_app">強行停止</string>
+    <string name="recents_app_killed">應用已強行停止</string>
+
 </resources>
