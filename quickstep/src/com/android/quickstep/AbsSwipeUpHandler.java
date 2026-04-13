@@ -243,6 +243,8 @@ public abstract class AbsSwipeUpHandler<
     //Ext add
     private static final float CUSTOM_GESTURE_TRIGGER_THRESHOLD = 3.5f;
     private static final String ACTION_PIN_LAST_APP = "org.avium.PINNED_LAST_APP";
+    private boolean mAviumGestureHintShown = false;
+    private Toast mAviumGestureToast = null;
 
     private static int FLAG_COUNT = 0;
     private static int getNextStateFlag(String name) {
@@ -1036,6 +1038,27 @@ public abstract class AbsSwipeUpHandler<
         applyScrollAndTransform();
 
         updateLauncherTransitionProgress();
+        boolean isAviumGestureEnable = android.os.SystemProperties.getBoolean("persist.avium.launchergesture", false);
+        if (mCurrentShift.value > CUSTOM_GESTURE_TRIGGER_THRESHOLD && isAviumGestureEnable) {
+            if (!mAviumGestureHintShown) {
+                mAviumGestureHintShown = true;
+                showAviumGestureHint();
+            }
+        } else {
+            mAviumGestureHintShown = false;
+            if (mAviumGestureToast != null) {
+                mAviumGestureToast.cancel();
+                mAviumGestureToast = null;
+            }
+        }
+    }
+
+    private void showAviumGestureHint() {
+        if (mContext == null) return;
+        String hintText = mContext.getString(R.string.avium_gesture_freeform_hint);
+        mAviumGestureToast = Toast.makeText(mContext, hintText, Toast.LENGTH_SHORT);
+        mAviumGestureToast.setGravity(android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL, 0, 100);
+        mAviumGestureToast.show();
     }
 
     private void updateLauncherTransitionProgress() {
@@ -1590,9 +1613,15 @@ public abstract class AbsSwipeUpHandler<
         boolean isAviumGestureEnable = android.os.SystemProperties.getBoolean("persist.avium.launchergesture", false);
         if (progress > CUSTOM_GESTURE_TRIGGER_THRESHOLD && isAviumGestureEnable) {
             onAviumFloatWindowGesture();
-            finalEndTarget = GestureState.GestureEndTarget.HOME;
+            finalEndTarget = GestureState.GestureEndTarget.REJECT_HOME;
         } else {
             finalEndTarget = calculatedEndTarget;
+        }
+        // Reset gesture hint state when gesture ends
+        mAviumGestureHintShown = false;
+        if (mAviumGestureToast != null) {
+            mAviumGestureToast.cancel();
+            mAviumGestureToast = null;
         }
         long duration = MAX_SWIPE_DURATION;
         float currentShift = mCurrentShift.value;
@@ -3236,7 +3265,7 @@ public abstract class AbsSwipeUpHandler<
     }
 
     private void onAviumFloatWindowGesture() {
-        Log.d("AviumLauncher", "Custom gesture triggered. Getting current task to launch in mini freeform.");
+        Log.d("AviumLauncher", "Custom gesture triggered. Getting current task to launch in freeform.");
 
         if (mContext == null) {
             return;
@@ -3246,7 +3275,7 @@ public abstract class AbsSwipeUpHandler<
         if (am == null) {
             return;
         }
-        final List<ActivityManager.RecentTaskInfo> recentTasks =
+        final List<ActivityManager.RecentTaskInfo> recentTasks = 
                 am.getRecentTasks(2, ActivityManager.RECENT_WITH_EXCLUDED);
 
         if (recentTasks == null || recentTasks.isEmpty()) {
@@ -3261,22 +3290,17 @@ public abstract class AbsSwipeUpHandler<
         }
 
         if (taskId <= 0) {
+
             return;
         }
 
-        try {
-            String packageName = currentTask.baseIntent.getComponent().getPackageName();
-            String activityName = currentTask.baseIntent.getComponent().getClassName();
-            int userId = currentTask.userId;
+        final ActivityOptions options = ActivityOptions.makeBasic();
+        options.setLaunchWindowingMode(101); 
 
-            Intent intent = new Intent("org.avium.LAUNCHER_MINI_WINDOW");
-            intent.putExtra("packageName", packageName);
-            intent.putExtra("activityName", activityName);
-            intent.putExtra("userId", userId);
-            mContext.sendBroadcast(intent);
-            
+        try {
+            ActivityTaskManager.getService().startActivityFromRecents(taskId, options.toBundle());
         } catch (Exception e) {
-            e.printStackTrace();
+            //do nothing
         }
     }
 }
