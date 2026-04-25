@@ -63,11 +63,14 @@ import com.android.launcher3.views.BaseDragLayer;
 import com.android.systemui.plugins.shared.LauncherOverlayManager.LauncherOverlayCallbacks;
 
 import java.util.ArrayList;
+import android.util.Log;
 
 /**
  * A ViewGroup that coordinates dragging across its descendants
  */
 public class DragLayer extends BaseDragLayer<Launcher> implements LauncherOverlayCallbacks {
+
+    private static final int EDGE_GESTURE_WIDTH_DP = 20;
 
     public static final int ALPHA_INDEX_OVERLAY = 0;
 
@@ -234,6 +237,16 @@ public class DragLayer extends BaseDragLayer<Launcher> implements LauncherOverla
         } finally {
             ev.offsetLocation(-getTranslationX(), 0);
         }
+    }
+
+    @Override
+    protected boolean isEventWithinSystemGestureRegion(MotionEvent ev) {
+        float density = getResources().getDisplayMetrics().density;
+        int edgeWidth = (int) (EDGE_GESTURE_WIDTH_DP * density);
+        float x = ev.getX();
+        boolean inEdge = x < edgeWidth || x > getWidth() - edgeWidth;
+        boolean result = inEdge ? true : super.isEventWithinSystemGestureRegion(ev);
+        return result;
     }
 
     public void animateViewIntoPosition(DragView dragView, final int[] pos, float alpha,

@@ -379,6 +379,9 @@ public class Launcher extends StatefulActivity<LauncherState>
 
     private WidgetPickerDataProvider mWidgetPickerDataProvider;
 
+    private org.avium.launcher.AppIndexController mAppIndexController;
+    protected org.avium.launcher.EdgeSwipeController mEdgeSwipeController;
+
     // We only want to get the SharedPreferences once since it does an FS stat each time we get
     // it from the context.
     private SharedPreferences mSharedPrefs;
@@ -550,6 +553,17 @@ public class Launcher extends StatefulActivity<LauncherState>
         }
         mStartupLatencyLogger.logEnd(LAUNCHER_LATENCY_STARTUP_ACTIVITY_ON_CREATE);
         TestEventEmitter.sendEvent(TestEvent.LAUNCHER_ON_CREATE);
+
+        initAppIndexController();
+    }
+
+    private void initAppIndexController() {
+        mAppIndexController = new org.avium.launcher.AppIndexController(this);
+        mAppIndexController.init();
+        mEdgeSwipeController = new org.avium.launcher.EdgeSwipeController(this);
+        mEdgeSwipeController.setAppIndexController(mAppIndexController);
+        mEdgeSwipeController.setupSystemGestureExclusion();
+        mDragLayer.recreateControllers();
     }
 
     protected ModelCallbacks createModelCallbacks() {
@@ -2430,6 +2444,9 @@ public class Launcher extends StatefulActivity<LauncherState>
     public void bindAllApplications(AppInfo[] apps, int flags,
             Map<PackageUserKey, Integer> packageUserKeytoUidMap) {
         mModelCallbacks.bindAllApplications(apps, flags, packageUserKeytoUidMap);
+        if (mAppIndexController != null) {
+            mAppIndexController.onAppsChanged();
+        }
     }
 
     @Override
@@ -2443,6 +2460,9 @@ public class Launcher extends StatefulActivity<LauncherState>
     @Override
     public void bindItemsUpdated(Set<ItemInfo> updates) {
         mModelCallbacks.bindItemsUpdated(updates);
+        if (mAppIndexController != null) {
+            mAppIndexController.onAppsChanged();
+        }
     }
 
     /**
@@ -2451,6 +2471,9 @@ public class Launcher extends StatefulActivity<LauncherState>
     @Override
     public void bindWorkspaceComponentsRemoved(Predicate<ItemInfo> matcher) {
         mModelCallbacks.bindWorkspaceComponentsRemoved(matcher);
+        if (mAppIndexController != null) {
+            mAppIndexController.onAppsChanged();
+        }
     }
 
     /**
@@ -2625,7 +2648,13 @@ public class Launcher extends StatefulActivity<LauncherState>
     }
 
     public TouchController[] createTouchControllers() {
-        return new TouchController[] {getDragController(), new AllAppsSwipeController(this)};
+        ArrayList<TouchController> list = new ArrayList<>();
+        if (mEdgeSwipeController != null) {
+            list.add(mEdgeSwipeController);
+        }
+        list.add(getDragController());
+        list.add(new AllAppsSwipeController(this));
+        return list.toArray(new TouchController[list.size()]);
     }
 
     public void onDragLayerHierarchyChanged() {
