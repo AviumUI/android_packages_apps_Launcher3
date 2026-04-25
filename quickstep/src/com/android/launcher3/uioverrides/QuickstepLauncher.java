@@ -796,6 +796,9 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
         NavigationMode mode = DisplayController.getNavigationMode(this);
 
         ArrayList<TouchController> list = new ArrayList<>();
+        if (mEdgeSwipeController != null) {
+            list.add(mEdgeSwipeController);
+        }
         list.add(getDragController());
         BiConsumer<AnimatorSet, Long> splitAnimator = (animatorSet, duration) ->
                 animatorSet.play(mSplitSelectStateController.getSplitAnimationController()
