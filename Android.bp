@@ -457,6 +457,9 @@ android_library {
         "launcher-executor-qualifiers",
         "launcher-executors-module",
         "libGoogleFeed",
+        "tinypinyin",
+        "tinypinyin-android-asset-lexicons",
+        "tinypinyin-lexicons-android-cncity",
         "org.lineageos.platform",
     ],
     manifest: "AndroidManifest-common.xml",
@@ -773,4 +776,25 @@ android_app {
     jacoco: {
         include_filter: ["com.android.launcher3.*"],
     },
+}
+
+java_import {
+    name: "tinypinyin",
+    jars: ["libs/tinypinyin-2.0.3.jar"],
+    installable: true,
+    sdk_version: "current",
+}
+
+android_library_import {
+    name: "tinypinyin-android-asset-lexicons",
+    aars: ["libs/tinypinyin-android-asset-lexicons-2.0.3.aar"],
+    sdk_version: "current",
+    manifest: "tinypinyin_manifest.xml",
+}
+
+android_library_import {
+    name: "tinypinyin-lexicons-android-cncity",
+    aars: ["libs/tinypinyin-lexicons-android-cncity-2.0.3.aar"],
+    sdk_version: "current",
+    manifest: "tinypinyin_manifest.xml",
 }
