@@ -67,6 +67,42 @@
         launcher:spanX="4"
         launcher:spanY="2" />
 
+    <appwidget
+        launcher:packageName="org.exthm.moonwidget"
+        launcher:className="org.exthm.moonwidget.MoonPhaseWidgetProvider"
+        launcher:screen="0"
+        launcher:x="0"
+        launcher:y="2"
+        launcher:spanX="3"
+        launcher:spanY="1" />
+
+    <appwidget
+        launcher:packageName="org.exthm.moonwidget"
+        launcher:className="org.exthm.moonwidget.CharacterWidgetProvider"
+        launcher:screen="0"
+        launcher:x="3"
+        launcher:y="2"
+        launcher:spanX="2"
+        launcher:spanY="1" />
+
+    <appwidget
+        launcher:packageName="org.exthm.moonwidget"
+        launcher:className="org.exthm.moonwidget.CountdownWidgetProvider"
+        launcher:screen="0"
+        launcher:x="0"
+        launcher:y="3"
+        launcher:spanX="3"
+        launcher:spanY="1" />
+
+    <appwidget
+        launcher:packageName="org.exthm.moonwidget"
+        launcher:className="org.exthm.moonwidget.BatteryWidgetProvider"
+        launcher:screen="0"
+        launcher:x="3"
+        launcher:y="3"
+        launcher:spanX="2"
+        launcher:spanY="1" />
+
     <favorite
         launcher:screen="0"
         launcher:x="0"
