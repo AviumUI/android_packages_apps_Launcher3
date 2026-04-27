@@ -151,6 +151,8 @@ import com.android.systemui.plugins.shared.LauncherOverlayManager.LauncherOverla
 
 import com.google.android.msdl.data.model.MSDLToken;
 
+import org.avium.launcher.folder.AviumLargeFolderDropPolicy;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -1797,7 +1799,8 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
             if (btv.isDisplaySearchResult()) {
                 dragOptions.preDragEndScale = (float) mAllAppsIconSize / btv.getIconSize();
             }
-        } else if (Flags.homeScreenEditImprovements() && child instanceof Poppable
+        } else if ((child instanceof FolderIcon
+                || (Flags.homeScreenEditImprovements() && child instanceof Poppable))
                 && !dragOptions.isAccessibleDrag) {
             Popup popup = mLauncher.getPopupControllerForHomeScreenItems()
                     .show(child);
@@ -1980,8 +1983,11 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
 
     boolean willAddToExistingUserFolder(ItemInfo dragInfo, CellLayout target, int[] targetCell,
                                         float distance) {
-        if (distance > target.getFolderCreationRadius(targetCell)) return false;
         View dropOverView = target.getChildAt(targetCell[0], targetCell[1]);
+        if (!AviumLargeFolderDropPolicy.isWithinAddToFolderDistance(
+                target, targetCell, distance, dropOverView)) {
+            return false;
+        }
         return willAddToExistingUserFolder(dragInfo, dropOverView);
 
     }
@@ -2063,9 +2069,11 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
 
     boolean addToExistingFolderIfNecessary(View newView, CellLayout target, int[] targetCell,
             float distance, DragObject d, boolean external) {
-        if (distance > target.getFolderCreationRadius(targetCell)) return false;
-
         View dropOverView = target.getChildAt(targetCell[0], targetCell[1]);
+        if (!AviumLargeFolderDropPolicy.isWithinAddToFolderDistance(
+                target, targetCell, distance, dropOverView)) {
+            return false;
+        }
         if (!mAddToExistingFolderOnDrop) return false;
         mAddToExistingFolderOnDrop = false;
 
@@ -2758,7 +2766,9 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
     }
 
     private void manageFolderFeedback(float distance, DragObject dragObject) {
-        if (distance > mDragTargetLayout.getFolderCreationRadius(mTargetCell)) {
+        mDragOverView = mDragTargetLayout.getChildAt(mTargetCell[0], mTargetCell[1]);
+        if (!AviumLargeFolderDropPolicy.isWithinAddToFolderDistance(
+                mDragTargetLayout, mTargetCell, distance, mDragOverView)) {
             if ((mDragMode == DRAG_MODE_ADD_TO_FOLDER
                     || mDragMode == DRAG_MODE_CREATE_FOLDER)) {
                 setDragMode(DRAG_MODE_NONE);
@@ -2766,7 +2776,6 @@ public class Workspace<T extends View & PageIndicator> extends PagedView<T>
             return;
         }
 
-        mDragOverView = mDragTargetLayout.getChildAt(mTargetCell[0], mTargetCell[1]);
         ItemInfo info = dragObject.dragInfo;
         boolean userFolderPending = willCreateUserFolder(info, mDragOverView, false);
         if (mDragMode == DRAG_MODE_NONE && userFolderPending) {

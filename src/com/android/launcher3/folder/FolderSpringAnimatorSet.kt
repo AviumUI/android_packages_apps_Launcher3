@@ -38,6 +38,7 @@ import com.android.launcher3.anim.SpringAnimationBuilder
 import com.android.launcher3.apppairs.AppPairIcon
 import com.android.launcher3.folder.ClippedFolderIconLayoutRule.MAX_NUM_ITEMS_IN_PREVIEW
 import com.android.launcher3.util.Themes
+import org.avium.launcher.folder.AviumLargeFolderManager
 
 /** Holder for Animators created from [FolderAnimationSpringBuilderManager] */
 class FolderSpringAnimatorSet(val animatorSet: AnimatorSet) {
@@ -69,6 +70,19 @@ class FolderSpringAnimatorSet(val animatorSet: AnimatorSet) {
             iconAnimData: List<IconAnimationData>,
         ): FolderSpringAnimatorSet {
             val animatorSet = AnimatorSet()
+            val isLargeFolder = AviumLargeFolderManager.isLargeFolder(folder.mInfo)
+            if (isLargeFolder) {
+                setupLargeFolder(folder, folderAnimData)
+                addLargeFolderContainerAnimators(folder, animatorSet, folderAnimData)
+                addAlphaAndColorAnimators(folder, animatorSet, folderAnimData)
+                addScrimAnimators(
+                    folder.context,
+                    animatorSet,
+                    folderAnimData.isOpening,
+                    launcherDelegate,
+                )
+                return FolderSpringAnimatorSet(animatorSet)
+            }
             setupFolder(folder, folderAnimData)
             addFolderScaleAndTranslateAnimators(folder, animatorSet, folderAnimData)
             addClipRevealAnimators(folder, animatorSet, clipRevealData)
@@ -131,6 +145,124 @@ class FolderSpringAnimatorSet(val animatorSet: AnimatorSet) {
             }
         }
 
+        private fun setupLargeFolder(folder: Folder, animationData: FolderAnimationData) {
+            val isOpening = animationData.isOpening
+            folder.apply {
+                pivotX = 0f
+                pivotY = animationData.contentTopOffset.toFloat()
+                alpha = 1f
+                scaleX = if (isOpening) animationData.backgroundScaleX else 1f
+                scaleY = if (isOpening) animationData.backgroundScaleY else 1f
+                translationX = if (isOpening) animationData.backgroundXDistance else 0f
+                translationY = if (isOpening) animationData.backgroundYDistance else 0f
+            }
+            folder.content.apply {
+                alpha = if (isOpening) 0f else 1f
+                scaleX = 1f
+                scaleY = 1f
+                pivotX = 0f
+                pivotY = 0f
+            }
+            folder.mFooter.apply {
+                scaleX = 1f
+                scaleY = 1f
+                pivotX = 0f
+                pivotY = 0f
+            }
+            folder.iconsInReadingOrder.forEach { icon ->
+                icon.alpha = 1f
+                icon.translationX = 0f
+                icon.translationY = 0f
+                icon.scaleX = 1f
+                icon.scaleY = 1f
+            }
+        }
+
+        private fun addLargeFolderContainerAnimators(
+            folder: Folder,
+            animatorSet: AnimatorSet,
+            animationData: FolderAnimationData,
+        ) {
+            val isOpening = animationData.isOpening
+            playSpringAnimation(
+                context = folder.context,
+                animatorSet = animatorSet,
+                isOpening = isOpening,
+                startDelay = 0,
+                stiffness = STIFFNESS_SHAPE_POSITION,
+                damping = DAMPING_SHAPE_POSITION,
+                startValue = 0f,
+                endValue = 1f,
+                minVisibleChange = MIN_VISIBLE_CHANGE_ALPHA,
+                property = View.ALPHA,
+                view = folder.content,
+            )
+            playSpringAnimation(
+                context = folder.context,
+                animatorSet = animatorSet,
+                isOpening = isOpening,
+                startDelay = 0,
+                stiffness = STIFFNESS_SHAPE_POSITION,
+                damping = DAMPING_SHAPE_POSITION,
+                startValue = animationData.backgroundXDistance,
+                endValue = 0f,
+                minVisibleChange = MIN_VISIBLE_CHANGE_PIXELS,
+                property = View.TRANSLATION_X,
+                view = folder,
+            )
+            playSpringAnimation(
+                context = folder.context,
+                animatorSet = animatorSet,
+                isOpening = isOpening,
+                startDelay = 0,
+                stiffness = STIFFNESS_SHAPE_POSITION,
+                damping = DAMPING_SHAPE_POSITION,
+                startValue = animationData.backgroundYDistance,
+                endValue = 0f,
+                minVisibleChange = MIN_VISIBLE_CHANGE_PIXELS,
+                property = View.TRANSLATION_Y,
+                view = folder,
+            )
+            playSpringAnimation(
+                context = folder.context,
+                animatorSet = animatorSet,
+                isOpening = isOpening,
+                startDelay = 0,
+                stiffness = STIFFNESS_SHAPE_POSITION,
+                damping = DAMPING_SHAPE_POSITION,
+                startValue = animationData.backgroundScaleX,
+                endValue = 1f,
+                minVisibleChange = MIN_VISIBLE_CHANGE_SCALE,
+                property = View.SCALE_X,
+                view = folder,
+            )
+            playSpringAnimation(
+                context = folder.context,
+                animatorSet = animatorSet,
+                isOpening = isOpening,
+                startDelay = 0,
+                stiffness = STIFFNESS_SHAPE_POSITION,
+                damping = DAMPING_SHAPE_POSITION,
+                startValue = animationData.backgroundScaleY,
+                endValue = 1f,
+                minVisibleChange = MIN_VISIBLE_CHANGE_SCALE,
+                property = View.SCALE_Y,
+                view = folder,
+            )
+            animatorSet.addListener(
+                object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        folder.alpha = 1f
+                        folder.content.alpha = 1f
+                        folder.scaleX = 1f
+                        folder.scaleY = 1f
+                        folder.translationX = 0f
+                        folder.translationY = 0f
+                    }
+                }
+            )
+        }
+
         private fun addFolderScaleAndTranslateAnimators(
             folder: Folder,
             animatorSet: AnimatorSet,
@@ -189,21 +321,6 @@ class FolderSpringAnimatorSet(val animatorSet: AnimatorSet) {
                 property = SCALE_PROPERTY,
                 view = folder.mFooter,
             )
-            // Translate the footer so that it tracks the bottom of the content.
-            playSpringAnimation(
-                context = folder.context,
-                animatorSet = animatorSet,
-                isOpening = isOpening,
-                startDelay = 0,
-                stiffness = STIFFNESS_SHAPE_POSITION,
-                damping = DAMPING_SHAPE_POSITION,
-                startValue = -(animationData.contentHeightDifference),
-                endValue = 0f,
-                minVisibleChange = MIN_VISIBLE_CHANGE_PIXELS,
-                property = View.TRANSLATION_Y,
-                view = folder.mFooter,
-            )
-
             // Animate the elevation midway so that the shadow is not noticeable in the background.
             val midDuration = animationData.defaultDuration / 2
             playSpringAnimation(

@@ -21,6 +21,21 @@
     android:defaultFocusHighlightEnabled="false"
     android:orientation="vertical" >
 
+    <com.android.launcher3.folder.FolderNameEditText
+        android:id="@+id/folder_name"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/folder_footer_height_default"
+        style="@style/TextHeadline"
+        android:background="@android:color/transparent"
+        android:gravity="center"
+        android:hint="@string/folder_hint_text"
+        android:imeOptions="flagNoExtractUi"
+        android:importantForAutofill="no"
+        android:singleLine="true"
+        android:textColor="?attr/workspaceTextColor"
+        android:textColorHighlight="?android:attr/colorControlHighlight"
+        android:textColorHint="?attr/workspaceTextColor"/>
+
     <com.android.launcher3.folder.FolderPagedView
         android:id="@+id/folder_content"
         android:clipToPadding="false"
@@ -33,25 +48,10 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/folder_footer_height_default"
         android:clipChildren="false"
+        android:gravity="center"
         android:orientation="horizontal"
         android:paddingLeft="@dimen/folder_footer_horiz_padding"
         android:paddingRight="@dimen/folder_footer_horiz_padding">
-
-        <com.android.launcher3.folder.FolderNameEditText
-            android:id="@+id/folder_name"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            style="@style/TextHeadline"
-            android:layout_weight="1"
-            android:background="@android:color/transparent"
-            android:gravity="center"
-            android:hint="@string/folder_hint_text"
-            android:imeOptions="flagNoExtractUi"
-            android:importantForAutofill="no"
-            android:singleLine="true"
-            android:textColor="?attr/folderTextColor"
-            android:textColorHighlight="?android:attr/colorControlHighlight"
-            android:textColorHint="?attr/folderHintTextColor"/>
 
         <com.android.launcher3.pageindicators.PaginationArrow
             android:id="@+id/left_indicator_arrow"

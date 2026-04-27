@@ -20,4 +20,9 @@
     <string name="pref_tablet_overview_style_summary_on">Using tablet style for overview/recents</string>
     <string name="pref_tablet_overview_style_summary_off">Using phone style for overview/recents</string>
     <string name="avium_gesture_freeform_hint">Release to enter freeform</string>
+    <string name="avium_folder_action_enlarge">Enlarge</string>
+    <string name="avium_folder_action_shrink">Shrink</string>
+    <string name="avium_folder_action_edit">Edit</string>
+    <string name="avium_folder_size_title">Folder size</string>
+    <string name="avium_folder_size_value">%1$dx%2$d</string>
 </resources>

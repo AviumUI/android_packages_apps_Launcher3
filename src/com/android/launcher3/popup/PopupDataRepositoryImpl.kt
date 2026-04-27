@@ -29,18 +29,18 @@ import com.android.launcher3.util.DaggerSingletonTracker
 import com.android.launcher3.util.Executors.DATA_HELPER_EXECUTOR
 import com.android.launcher3.widget.WidgetManagerHelper
 import javax.inject.Inject
+import org.avium.launcher.folder.AviumFolderPopupDataProvider
 
 @LauncherAppSingleton
 class PopupDataRepositoryImpl
 @Inject
 constructor(
-    popupDataSource: PopupDataSource,
+    private val popupDataSource: PopupDataSource,
     @ApplicationContext private val context: Context,
     @LauncherAppSingleton private val homeScreenRepository: HomeScreenRepository,
     lifeCycle: DaggerSingletonTracker,
 ) : PopupDataRepository {
     private val widgetManagerHelper = WidgetManagerHelper(context)
-    private val folderSystemShortcuts = listOf(popupDataSource.removePopupData)
     private val appPairSystemShortcuts = listOf(popupDataSource.removePopupData)
     private val widgetSystemShortcuts = listOf(popupDataSource.removePopupData)
     private val widgetWithSettingsSystemShortcuts =
@@ -60,6 +60,9 @@ constructor(
     }
 
     override fun getPopupDataByItemInfo(itemInfo: ItemInfo): List<PopupData>? {
+        if (itemInfo.itemType == ITEM_TYPE_FOLDER) {
+            return getPopupDataForItemInfo(itemInfo)
+        }
         if (!popupData.containsKey(itemInfo.id)) {
             addItem(itemInfo)
         }
@@ -103,7 +106,7 @@ constructor(
      */
     private fun getPopupDataForItemInfo(itemInfo: ItemInfo): List<PopupData>? {
         return when (itemInfo.itemType) {
-            ITEM_TYPE_FOLDER -> folderSystemShortcuts
+            ITEM_TYPE_FOLDER -> AviumFolderPopupDataProvider.getPopupData(popupDataSource, itemInfo)
             ITEM_TYPE_APP_PAIR -> appPairSystemShortcuts
             ITEM_TYPE_APPWIDGET -> {
                 if (itemInfo is LauncherAppWidgetInfo) {

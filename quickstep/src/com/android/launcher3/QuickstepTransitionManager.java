@@ -181,6 +181,10 @@ import com.android.systemui.shared.system.QuickStepContract;
 import com.android.wm.shell.shared.desktopmode.DesktopModeStatus;
 import com.android.wm.shell.startingsurface.IStartingWindowListener;
 
+import org.avium.launcher.anim.AviumRemoteAnimationTargetUtils;
+import org.avium.launcher.folder.AviumLargeFolderManager;
+import org.avium.launcher.folder.AviumLargeFolderTransitionHelper;
+
 import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -1576,20 +1580,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
             return null;
         }
 
-        final ComponentName[] taskInfoActivities = new ComponentName[]{
-                runningTaskTarget.taskInfo.baseActivity,
-                runningTaskTarget.taskInfo.origActivity,
-                runningTaskTarget.taskInfo.realActivity,
-                runningTaskTarget.taskInfo.topActivity};
-
-        String packageName = null;
-        for (ComponentName component : taskInfoActivities) {
-            if (component != null && component.getPackageName() != null) {
-                packageName = component.getPackageName();
-                break;
-            }
-        }
-
+        String packageName = AviumRemoteAnimationTargetUtils.getPackageName(runningTaskTarget);
         if (packageName == null) {
             return null;
         }
@@ -1629,6 +1620,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
         FloatingIconView floatingIconView = null;
         FloatingWidgetView floatingWidget = null;
         RectF targetRect = new RectF();
+        boolean isAviumLargeFolderTarget = false;
 
         RemoteAnimationTarget runningTaskTarget = null;
         boolean isTransluscent = false;
@@ -1639,6 +1631,11 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
                 break;
             }
         }
+        launcherView = AviumLargeFolderManager.resolveClosingTarget(
+                launcherView,
+                AviumRemoteAnimationTargetUtils.getPackageName(runningTaskTarget),
+                runningTaskTarget == null || runningTaskTarget.taskInfo == null
+                        ? null : UserHandle.of(runningTaskTarget.taskInfo.userId));
 
         // Get floating view and target rect.
         boolean isInHotseat = false;
@@ -1650,6 +1647,9 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
             floatingWidget = FloatingWidgetView.getFloatingWidgetView(mLauncher,
                     (LauncherAppWidgetHostView) launcherView, targetRect, windowSize,
                     getWindowCornerRadius(mLauncher), isTransluscent, fallbackBackgroundColor);
+        } else if (AviumLargeFolderTransitionHelper.getTargetBounds(
+                mLauncher, launcherView, targetRect)) {
+            isAviumLargeFolderTarget = true;
         } else if (launcherView != null && !RemoveAnimationSettingsTracker.INSTANCE.get(
                 mLauncher).isRemoveAnimationEnabled()) {
             floatingIconView = getFloatingIconView(mLauncher, launcherView, null,
@@ -1673,6 +1673,9 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
         closingWindowStartRectF.round(closingWindowStartRect);
         Rect closingWindowOriginalRect =
                 new Rect(0, 0, mDeviceProfile.getDeviceProperties().getWidthPx(), mDeviceProfile.getDeviceProperties().getHeightPx());
+        AviumLargeFolderTransitionHelper largeFolderTransitionHelper = isAviumLargeFolderTarget
+                ? new AviumLargeFolderTransitionHelper(launcherView)
+                : null;
         if (floatingIconView != null) {
             anim.addAnimatorListener(floatingIconView);
             floatingIconView.setOnTargetChangeListener(anim::onTargetPositionChanged);
@@ -1724,16 +1727,45 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
         } else {
             // If no floating icon or widget is present, animate the to the default window
             // target rect.
-            anim.addOnUpdateListener(new SpringAnimRunner(
-                    targets, targetRect, closingWindowStartRect, closingWindowOriginalRect,
-                    startWindowCornerRadius));
+            SpringAnimRunner runner = isAviumLargeFolderTarget
+                    ? new SpringAnimRunner(
+                            targets, targetRect, closingWindowStartRect,
+                            closingWindowOriginalRect, startWindowCornerRadius) {
+                        @Override
+                        protected float getWindowAlpha(float progress) {
+                            return AviumLargeFolderTransitionHelper.getWindowAlpha(progress);
+                        }
+
+                        @Override
+                        public void onUpdate(RectF currentRectF, float progress) {
+                            largeFolderTransitionHelper.prepare();
+                            super.onUpdate(currentRectF, progress);
+                        }
+                    }
+                    : new SpringAnimRunner(
+                            targets, targetRect, closingWindowStartRect,
+                            closingWindowOriginalRect, startWindowCornerRadius);
+            anim.addOnUpdateListener(runner);
         }
 
         // Use a fixed velocity to start the animation.
+        boolean finalIsAviumLargeFolderTarget = isAviumLargeFolderTarget;
+        AviumLargeFolderTransitionHelper finalLargeFolderTransitionHelper =
+                largeFolderTransitionHelper;
         animation.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationStart(Animator animation) {
+                if (finalIsAviumLargeFolderTarget) {
+                    finalLargeFolderTransitionHelper.prepare();
+                }
                 anim.start(mLauncher, mDeviceProfile, velocityPxPerS);
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (finalIsAviumLargeFolderTarget) {
+                    finalLargeFolderTransitionHelper.restoreOnce();
+                }
             }
         });
         return anim;

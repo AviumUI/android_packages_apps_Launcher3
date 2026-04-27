@@ -46,6 +46,8 @@ import com.android.launcher3.widget.LauncherAppWidgetHostView
 import com.android.launcher3.widget.WidgetsBottomSheet
 import com.android.wm.shell.shared.bubbles.logging.EntryPoint
 import javax.inject.Inject
+import org.avium.launcher.folder.AviumFolderSizeSheet
+import org.avium.launcher.folder.AviumLargeFolderSizer
 
 @LauncherAppSingleton
 class PopupDataSource @Inject constructor() {
@@ -63,6 +65,30 @@ class PopupDataSource @Inject constructor() {
             iconResId = R.drawable.ic_remove_no_shadow,
             labelResId = R.string.remove_drop_target_label,
             popupAction = handleRemove,
+            category = PopupCategory.SYSTEM_SHORTCUT_FIXED,
+        )
+
+    val folderEnlargePopupData =
+        PopupData(
+            iconResId = R.drawable.ic_aspect_ratio,
+            labelResId = R.string.avium_folder_action_enlarge,
+            popupAction = AviumLargeFolderSizer::enlargeFolder,
+            category = PopupCategory.SYSTEM_SHORTCUT_FIXED,
+        )
+
+    val folderShrinkPopupData =
+        PopupData(
+            iconResId = R.drawable.ic_aspect_ratio,
+            labelResId = R.string.avium_folder_action_shrink,
+            popupAction = AviumLargeFolderSizer::shrinkFolder,
+            category = PopupCategory.SYSTEM_SHORTCUT_FIXED,
+        )
+
+    val folderEditPopupData =
+        PopupData(
+            iconResId = R.drawable.gm_edit_24,
+            labelResId = R.string.avium_folder_action_edit,
+            popupAction = AviumFolderSizeSheet::show,
             category = PopupCategory.SYSTEM_SHORTCUT_FIXED,
         )
 

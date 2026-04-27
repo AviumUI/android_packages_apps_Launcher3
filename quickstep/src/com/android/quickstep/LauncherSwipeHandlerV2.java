@@ -22,6 +22,8 @@ import static com.android.launcher3.Utilities.mapBoundToRange;
 import static com.android.launcher3.views.FloatingIconView.SHAPE_PROGRESS_DURATION;
 import static com.android.quickstep.util.FloatingIconViewHelper.getFloatingIconView;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.content.Context;
 import android.graphics.Rect;
@@ -57,6 +59,9 @@ import com.android.quickstep.views.RecentsView;
 import com.android.quickstep.views.TaskView;
 import com.android.systemui.shared.recents.model.Task;
 import com.android.systemui.shared.system.InputConsumerController;
+
+import org.avium.launcher.folder.AviumLargeFolderManager;
+import org.avium.launcher.folder.AviumLargeFolderTransitionHelper;
 
 import java.util.Collections;
 import java.util.List;
@@ -130,7 +135,70 @@ public class LauncherSwipeHandlerV2 extends AbsSwipeUpHandler<
             return createWidgetHomeAnimationFactory((LauncherAppWidgetHostView) workspaceView,
                     isTargetTranslucent, runningTaskTarget);
         }
+        if (AviumLargeFolderManager.isLargeFolderIcon(workspaceView)) {
+            return createLargeFolderHomeAnimationFactory(workspaceView);
+        }
         return createIconHomeAnimationFactory(workspaceView, targetTaskView);
+    }
+
+    private HomeAnimationFactory createLargeFolderHomeAnimationFactory(View workspaceView) {
+        RectF folderLocation = new RectF();
+        AviumLargeFolderTransitionHelper.getTargetBounds(mContainer, workspaceView, folderLocation);
+        AviumLargeFolderTransitionHelper transitionHelper =
+                new AviumLargeFolderTransitionHelper(workspaceView);
+        transitionHelper.prepare();
+
+        return new LauncherHomeAnimationFactory() {
+            @Nullable
+            private RectF mTargetRect;
+
+            @NonNull
+            @Override
+            public RectF getWindowTargetRect() {
+                if (mTargetRect == null) {
+                    mTargetRect = new RectF(folderLocation);
+                }
+                return mTargetRect;
+            }
+
+            @Override
+            public void setAnimation(RectFSpringAnim anim) {
+                super.setAnimation(anim);
+                anim.addAnimatorListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationStart(Animator animation) {
+                        transitionHelper.prepare();
+                    }
+
+                    @Override
+                    public void onAnimationCancel(Animator animation) {
+                        transitionHelper.restoreOnce();
+                    }
+
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        transitionHelper.restoreOnce();
+                    }
+                });
+            }
+
+            @Override
+            public void update(
+                    RectF currentRect,
+                    float progress,
+                    float radius,
+                    int overlayAlpha) {
+                transitionHelper.prepare();
+                if (progress >= 0.98f) {
+                    transitionHelper.restoreOnce();
+                }
+            }
+
+            @Override
+            protected float getWindowAlpha(float progress) {
+                return AviumLargeFolderTransitionHelper.getWindowAlpha(progress);
+            }
+        };
     }
 
     private HomeAnimationFactory createIconHomeAnimationFactory(
@@ -307,10 +375,13 @@ public class LauncherSwipeHandlerV2 extends AbsSwipeUpHandler<
             return null;
         }
 
-        return mContainer.getFirstHomeElementForAppClose(
+        String packageName = sourceTaskView.getFirstTask().key.getComponent().getPackageName();
+        UserHandle user = UserHandle.of(sourceTaskView.getFirstTask().key.userId);
+        View workspaceView = mContainer.getFirstHomeElementForAppClose(
                 StableViewInfo.fromLaunchCookies(launchCookies),
-                sourceTaskView.getFirstTask().key.getComponent().getPackageName(),
-                UserHandle.of(sourceTaskView.getFirstTask().key.userId));
+                packageName,
+                user);
+        return AviumLargeFolderManager.resolveClosingTarget(workspaceView, packageName, user);
     }
 
     @Override

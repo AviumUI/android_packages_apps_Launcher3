@@ -65,6 +65,7 @@ import com.android.launcher3.util.PackageUserKey
 import com.android.launcher3.widget.LauncherAppWidgetProviderInfo
 import com.android.launcher3.widget.WidgetInflater
 import com.android.launcher3.widget.util.WidgetSizeHandler
+import org.avium.launcher.folder.AviumLargeFolderModelPolicy
 
 /**
  * This items is used by LoaderTask to process items that have been loaded from the Launcher's DB.
@@ -474,11 +475,25 @@ class WorkspaceItemProcessor(
         c.applyCommonProperties(collection)
         // Do not trim the folder label, as is was set by the user.
         collection.title = c.getString(c.mTitleIndex)
-        collection.spanX = 1
-        collection.spanY = 1
         if (collection is FolderInfo) {
             collection.options = c.options
+            AviumLargeFolderModelPolicy.applyLoadedSpan(collection, c.spanX, c.spanY)
+            if (
+                AviumLargeFolderModelPolicy.shrinkIfOutsideGrid(
+                    collection,
+                    idp.numColumns,
+                    idp.numRows,
+                )
+            ) {
+                c.updater()
+                    .put(Favorites.OPTIONS, collection.options)
+                    .put(Favorites.SPANX, collection.spanX)
+                    .put(Favorites.SPANY, collection.spanY)
+                    .commit()
+            }
         } else {
+            collection.spanX = 1
+            collection.spanY = 1
             // An app pair may be inside another folder, so it needs to preserve rank information.
             collection.rank = c.rank
         }
@@ -723,9 +738,11 @@ class WorkspaceItemProcessor(
                 info.rank = rank
                 if (
                     info is WorkspaceItemInfo &&
-                        info.matchingLookupFlag.isVisuallyLessThan(Favorites.DESKTOP_ICON_FLAG) &&
-                        info.itemType == Favorites.ITEM_TYPE_APPLICATION &&
-                        verifiers.any { it.isItemInPreview(info.rank) }
+                        AviumLargeFolderModelPolicy.shouldLoadHighResIcon(
+                            itemInfo,
+                            info,
+                            verifiers.any { it.isItemInPreview(info.rank) },
+                        )
                 ) {
                     iconCache.getTitleAndIcon(info, Favorites.DESKTOP_ICON_FLAG)
                 }

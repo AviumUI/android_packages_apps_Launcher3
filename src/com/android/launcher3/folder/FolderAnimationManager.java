@@ -55,6 +55,9 @@ import com.android.launcher3.views.BaseDragLayer;
 
 import java.util.List;
 
+import org.avium.launcher.folder.AviumLargeFolderAnimationHelper;
+import org.avium.launcher.folder.AviumLargeFolderManager;
+
 /**
  * Manages the opening and closing animations for a {@link Folder}.
  *
@@ -141,18 +144,32 @@ public class FolderAnimationManager implements FolderAnimationCreator {
         mFolderIcon.getPreviewItemManager().recomputePreviewDrawingParams();
         ClippedFolderIconLayoutRule rule = mFolderIcon.getLayoutRule();
         final List<View> itemsInPreview = getPreviewIconsOnPage(0);
+        final boolean isAviumLargeFolder = AviumLargeFolderManager.isLargeFolder(mFolder.mInfo);
 
         // Match position of the FolderIcon
         final Rect folderIconPos = new Rect();
         float scaleRelativeToDragLayer = mFolder.mActivityContext.getDragLayer()
                 .getDescendantRectRelativeToSelf(mFolderIcon, folderIconPos);
+        final Rect largeFolderIconBounds = new Rect();
+        if (isAviumLargeFolder) {
+            AviumLargeFolderManager.getIconBounds(mFolderIcon, largeFolderIconBounds);
+        }
         int scaledRadius = mPreviewBackground.getScaledRadius();
-        float initialSize = (scaledRadius * 2) * scaleRelativeToDragLayer;
+        float initialSize = isAviumLargeFolder
+                ? largeFolderIconBounds.width() * scaleRelativeToDragLayer
+                : (scaledRadius * 2) * scaleRelativeToDragLayer;
+        float initialHeight = isAviumLargeFolder
+                ? largeFolderIconBounds.height() * scaleRelativeToDragLayer
+                : initialSize;
 
         // Match size/scale of icons in the preview
         float previewScale = rule.scaleForItem(itemsInPreview.size(), 0);
-        float previewSize = rule.getIconSize() * previewScale;
-        float baseIconSize = getBubbleTextView(itemsInPreview.get(0)).getIconSize();
+        float previewSize = isAviumLargeFolder
+                ? AviumLargeFolderManager.getGridIconSize(mFolderIcon)
+                : rule.getIconSize() * previewScale;
+        float baseIconSize = itemsInPreview.isEmpty()
+                ? mDeviceProfile.folderIconSizePx
+                : getBubbleTextView(itemsInPreview.get(0)).getIconSize();
         float initialScale = previewSize / baseIconSize * scaleRelativeToDragLayer;
         final float finalScale = 1f;
         float scale = mIsOpening ? initialScale : finalScale;
@@ -170,19 +187,29 @@ public class FolderAnimationManager implements FolderAnimationCreator {
         mFolder.mFooter.setPivotY(0);
 
         int previewItemOffsetX = 0;
-        if (Utilities.isRtl(mContext.getResources())) {
+        if (!isAviumLargeFolder && Utilities.isRtl(mContext.getResources())) {
             previewItemOffsetX = (int) (lp.width * initialScale - initialSize);
         }
 
         final int paddingOffsetX = (int) (mContent.getPaddingLeft() * initialScale);
         final int paddingOffsetY = (int) (mContent.getPaddingTop() * initialScale);
+        final int contentTopOffset = mFolder.getContentAreaTop();
 
-        int initialX = folderIconPos.left + mFolder.getPaddingLeft()
-                + Math.round(mPreviewBackground.getOffsetX() * scaleRelativeToDragLayer)
-                - paddingOffsetX - previewItemOffsetX;
-        int initialY = folderIconPos.top + mFolder.getPaddingTop()
-                + Math.round(mPreviewBackground.getOffsetY() * scaleRelativeToDragLayer)
-                - paddingOffsetY;
+        int initialX = isAviumLargeFolder
+                ? folderIconPos.left
+                        + Math.round(largeFolderIconBounds.left * scaleRelativeToDragLayer)
+                        - paddingOffsetX
+                : folderIconPos.left + mFolder.getPaddingLeft()
+                        + Math.round(mPreviewBackground.getOffsetX() * scaleRelativeToDragLayer)
+                        - paddingOffsetX - previewItemOffsetX;
+        int initialY = isAviumLargeFolder
+                ? folderIconPos.top
+                        + Math.round(largeFolderIconBounds.top * scaleRelativeToDragLayer)
+                        - contentTopOffset - paddingOffsetY
+                : folderIconPos.top + mFolder.getPaddingTop()
+                        + Math.round(mPreviewBackground.getOffsetY() * scaleRelativeToDragLayer)
+                        - contentTopOffset
+                        - paddingOffsetY;
         final float xDistance = initialX - lp.x;
         final float yDistance = initialY - lp.y;
 
@@ -195,10 +222,31 @@ public class FolderAnimationManager implements FolderAnimationCreator {
 
         // Set up the reveal animation that clips the Folder.
         int totalOffsetX = paddingOffsetX + previewItemOffsetX;
+        final float backgroundXDistance = isAviumLargeFolder
+                ? folderIconPos.left
+                        + Math.round(largeFolderIconBounds.left * scaleRelativeToDragLayer)
+                        - lp.x
+                : xDistance;
+        final float backgroundYDistance = isAviumLargeFolder
+                ? folderIconPos.top
+                        + Math.round(largeFolderIconBounds.top * scaleRelativeToDragLayer)
+                        - lp.y - contentTopOffset
+                : yDistance;
+        final float backgroundScaleX = isAviumLargeFolder && lp.width > 0
+                ? initialSize / lp.width : initialScale;
+        int finalBackgroundHeight = lp.height - contentTopOffset;
+        final float backgroundScaleY = isAviumLargeFolder && finalBackgroundHeight > 0
+                ? initialHeight / finalBackgroundHeight : initialScale;
+
+        if (isAviumLargeFolder) {
+            return createLargeFolderAnimatorSet(initialColor, finalColor, contentTopOffset,
+                    backgroundXDistance, backgroundYDistance, backgroundScaleX, backgroundScaleY);
+        }
+
         Rect startRect = new Rect(totalOffsetX,
-                paddingOffsetY,
+                contentTopOffset + paddingOffsetY,
                 Math.round((totalOffsetX + initialSize)),
-                Math.round((paddingOffsetY + initialSize)));
+                Math.round((contentTopOffset + paddingOffsetY + initialHeight)));
         Rect endRect = new Rect(0, 0, lp.width, lp.height);
         float finalRadius = mFolderBackground.getCornerRadius();
 
@@ -257,9 +305,9 @@ public class FolderAnimationManager implements FolderAnimationCreator {
                 * EXTRA_FOLDER_REVEAL_RADIUS_PERCENTAGE);
         Rect contentStart = new Rect(
                 (int) (left + (startRect.left / initialScale)) - extraRadius,
-                (int) (startRect.top / initialScale) - extraRadius,
+                (int) (paddingOffsetY / initialScale) - extraRadius,
                 (int) (left + (startRect.right / initialScale)) + extraRadius,
-                (int) (startRect.bottom / initialScale) + extraRadius);
+                (int) ((paddingOffsetY + initialHeight) / initialScale) + extraRadius);
         Rect contentEnd = new Rect(left, 0, left + lp.width, lp.height);
         // animated contents of folder with the folder background
         play(a, shapeDelegate.createRevealAnimator(
@@ -270,12 +318,6 @@ public class FolderAnimationManager implements FolderAnimationCreator {
         play(a, getAnimator(mFolder.getFolderName(), View.ALPHA, 0, 1),
                 mIsOpening ? FOLDER_NAME_ALPHA_DURATION : 0,
                 mIsOpening ? mDuration - FOLDER_NAME_ALPHA_DURATION : FOLDER_NAME_ALPHA_DURATION);
-
-        // Translate the footer so that it tracks the bottom of the content.
-        float normalHeight = mFolder.getContentAreaHeight();
-        float scaledHeight = normalHeight * initialScale;
-        float diff = normalHeight - scaledHeight;
-        play(a, getAnimator(mFolder.mFooter, View.TRANSLATION_Y, -diff, 0f));
 
         // Animate the elevation midway so that the shadow is not noticeable in the background.
         int midDuration = mDuration / 2;
@@ -357,10 +399,72 @@ public class FolderAnimationManager implements FolderAnimationCreator {
         return a;
     }
 
+    private AnimatorSet createLargeFolderAnimatorSet(int initialColor, int finalColor,
+            int contentTopOffset, float xDistance, float yDistance, float scaleX, float scaleY) {
+        AnimatorSet animatorSet = new AnimatorSet();
+        mFolder.setPivotX(0f);
+        mFolder.setPivotY(contentTopOffset);
+        mFolder.setAlpha(1f);
+        mFolder.setScaleX(mIsOpening ? scaleX : 1f);
+        mFolder.setScaleY(mIsOpening ? scaleY : 1f);
+        mFolder.setTranslationX(mIsOpening ? xDistance : 0f);
+        mFolder.setTranslationY(mIsOpening ? yDistance : 0f);
+        mFolder.mContent.setAlpha(mIsOpening ? 0f : 1f);
+        mFolder.mContent.setScaleX(1f);
+        mFolder.mContent.setScaleY(1f);
+        mFolder.mFooter.setScaleX(1f);
+        mFolder.mFooter.setScaleY(1f);
+        for (View icon : mFolder.getIconsInReadingOrder()) {
+            icon.setAlpha(1f);
+            icon.setTranslationX(0f);
+            icon.setTranslationY(0f);
+            icon.setScaleX(1f);
+            icon.setScaleY(1f);
+        }
+
+        play(animatorSet, getAnimator(mFolderBackground, "color", initialColor, finalColor));
+        play(animatorSet, getAnimator(mFolder.mContent, ALPHA, 0f, 1f));
+        play(animatorSet, getAnimator(mFolder, View.TRANSLATION_X, xDistance, 0f));
+        play(animatorSet, getAnimator(mFolder, View.TRANSLATION_Y, yDistance, 0f));
+        play(animatorSet, getAnimator(mFolder, View.SCALE_X, scaleX, 1f));
+        play(animatorSet, getAnimator(mFolder, View.SCALE_Y, scaleY, 1f));
+
+        mFolder.getFolderName().setAlpha(mIsOpening ? 0f : 1f);
+        play(animatorSet, getAnimator(mFolder.getFolderName(), View.ALPHA, 0, 1),
+                mIsOpening ? FOLDER_NAME_ALPHA_DURATION : 0,
+                mIsOpening ? mDuration - FOLDER_NAME_ALPHA_DURATION : FOLDER_NAME_ALPHA_DURATION);
+        play(animatorSet, getAnimator(mFolder.mFooter, ALPHA, 0, 1f),
+                mIsOpening ? mDuration - LARGE_FOLDER_FOOTER_DURATION : 0,
+                mIsOpening ? LARGE_FOLDER_FOOTER_DURATION : 0);
+
+        animatorSet.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mFolder.setAlpha(1f);
+                mFolder.mContent.setAlpha(1f);
+                mFolder.setScaleX(1f);
+                mFolder.setScaleY(1f);
+                mFolder.setTranslationX(0f);
+                mFolder.setTranslationY(0f);
+                mFolder.mContent.setScaleX(1f);
+                mFolder.mContent.setScaleY(1f);
+                mFolder.mFooter.setScaleX(1f);
+                mFolder.mFooter.setScaleY(1f);
+                mFolder.getFolderName().setAlpha(1f);
+            }
+        });
+        return animatorSet;
+    }
+
     /**
      * Returns the list of "preview items" on {@param page}.
      */
     private List<View> getPreviewIconsOnPage(int page) {
+        List<View> aviumPreviewIcons =
+                AviumLargeFolderAnimationHelper.getPreviewIconsOnPage(mFolder, page);
+        if (aviumPreviewIcons != null) {
+            return aviumPreviewIcons;
+        }
         return mPreviewVerifier.setFolderInfo(mFolder.mInfo)
                 .previewItemsForPage(page, mFolder.getIconsInReadingOrder());
     }
@@ -389,10 +493,10 @@ public class FolderAnimationManager implements FolderAnimationCreator {
             vLp.isLockedToGrid = true;
             cwc.setupLp(v);
 
+            float baseIconSize = getBubbleTextView(v).getIconSize();
             // Match scale of icons in the preview of the items on the first page.
             float previewScale = rule.scaleForItem(numItemsInFirstPagePreview, 0);
             float previewSize = rule.getIconSize() * previewScale;
-            float baseIconSize = getBubbleTextView(v).getIconSize();
             float iconScale = previewSize / baseIconSize;
 
             final float initialScale = iconScale / folderScale;
@@ -401,15 +505,14 @@ public class FolderAnimationManager implements FolderAnimationCreator {
             v.setScaleX(scale);
             v.setScaleY(scale);
 
-            // Match positions of the icons in the folder with their positions in the preview
-            rule.computePreviewItemDrawingParams(i, numItemsInFirstPagePreview, mTmpParams);
             // The PreviewLayoutRule assumes that the icon size takes up the entire width so we
             // offset by the actual size.
             int iconOffsetX = (int) ((vLp.width - baseIconSize) * iconScale) / 2;
 
-            final int previewPosX =
-                    (int) ((mTmpParams.transX - iconOffsetX + previewItemOffsetX) / folderScale);
             final float paddingTop = v.getPaddingTop() * iconScale;
+            rule.computePreviewItemDrawingParams(i, numItemsInFirstPagePreview, mTmpParams);
+            final int previewPosX = (int) ((mTmpParams.transX - iconOffsetX + previewItemOffsetX)
+                    / folderScale);
             final int previewPosY = (int) ((mTmpParams.transY + previewItemOffsetY - paddingTop)
                     / folderScale);
 
