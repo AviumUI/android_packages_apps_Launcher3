@@ -74,9 +74,9 @@ data class IconAnimationData(
                 shortcutsAndWidgets?.setupLp(currentIcon)
 
                 // Match scale of icons in the preview of the items on the first page.
+                val baseIconSize = getBubbleTextView(currentIcon).iconSize.toFloat()
                 val previewIconScale = layoutRule.scaleForItem(numItemsOnPage, page)
                 val previewIconSize = layoutRule.iconSize * previewIconScale
-                val baseIconSize = getBubbleTextView(currentIcon).iconSize.toFloat()
                 val iconScale = previewIconSize / baseIconSize
 
                 // Scale when folder closed
@@ -96,21 +96,23 @@ data class IconAnimationData(
                     } else {
                         numItemsOnPage
                     }
-                // Match positions of the icons in the folder with their positions in the preview
-                layoutRule.computeSpringAnimationItemParams(i, pageLayoutCount, page, mTmpParams)
-
                 // The PreviewLayoutRule assumes that the icon size takes up the entire width so we
                 // offset by the actual size.
                 val iconOffsetX = ((iconLayoutParams.width - baseIconSize) * iconScale).toInt() / 2
 
                 // Calculate positions for each icon
+                val paddingTop = currentIcon.paddingTop * iconScale
+                layoutRule.computeSpringAnimationItemParams(i, pageLayoutCount, page, mTmpParams)
                 val iconPositionX =
-                    ((mTmpParams.transX - iconOffsetX + folderAnimationData.scaledPreviewOffsetX) /
+                    ((mTmpParams.transX -
+                                iconOffsetX +
+                                folderAnimationData.scaledPreviewOffsetX) /
                             folderAnimationData.folderScale)
                         .toInt()
-                val paddingTop = currentIcon.paddingTop * iconScale
                 val iconPositionY =
-                    ((mTmpParams.transY + folderAnimationData.folderRadiusDifference - paddingTop) /
+                    ((mTmpParams.transY +
+                                folderAnimationData.folderRadiusDifference -
+                                paddingTop) /
                             folderAnimationData.folderScale)
                         .toInt()
                 val xDistance = (iconPositionX - iconLayoutParams.x).toFloat()

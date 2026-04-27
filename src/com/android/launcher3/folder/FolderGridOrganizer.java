@@ -134,8 +134,9 @@ public class FolderGridOrganizer {
             done = gridCountX == oldCountX && gridCountY == oldCountY;
         }
 
-        mCountX = gridCountX;
-        mCountY = gridCountY;
+        mCountX = count > 0 ? mMaxCountX : gridCountX;
+        mCountY = count > 0 ? Math.max(1,
+                Math.min(mMaxCountY, (int) Math.ceil((float) count / mMaxCountX))) : gridCountY;
     }
 
     /**

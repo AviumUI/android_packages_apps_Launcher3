@@ -20,4 +20,9 @@
     <string name="pref_tablet_overview_style_summary_on">使用平板样式</string>
     <string name="pref_tablet_overview_style_summary_off">使用手机样式</string>
     <string name="avium_gesture_freeform_hint">松手进入小窗</string>
+    <string name="avium_folder_action_enlarge">放大</string>
+    <string name="avium_folder_action_shrink">缩小</string>
+    <string name="avium_folder_action_edit">编辑</string>
+    <string name="avium_folder_size_title">文件夹大小</string>
+    <string name="avium_folder_size_value">%1$dx%2$d</string>
 </resources>

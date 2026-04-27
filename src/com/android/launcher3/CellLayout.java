@@ -1587,8 +1587,23 @@ public class CellLayout extends ViewGroup {
                         ReorderPreviewAnimation.MODE_PREVIEW);
             }
             mShortcutsAndWidgets.requestLayout();
+            return true;
         }
-        return swapSolution.isSolution;
+        return false;
+    }
+
+    public boolean createAreaForAviumLargeFolder(View child, int spanX, int spanY) {
+        if (!(child.getLayoutParams() instanceof CellLayoutLayoutParams lp)) {
+            return false;
+        }
+        int[] direction = {spanX >= lp.cellHSpan ? 1 : -1, spanY >= lp.cellVSpan ? 1 : -1};
+        return createAreaForResize(lp.getCellX(), lp.getCellY(), spanX, spanY, child, direction,
+                true);
+    }
+
+    public boolean createAreaForAviumLargeFolderResize(int cellX, int cellY, int spanX, int spanY,
+            View child, int[] direction, boolean commit) {
+        return createAreaForResize(cellX, cellY, spanX, spanY, child, direction, commit);
     }
 
     public ReorderAlgorithm createReorderAlgorithm() {

@@ -32,6 +32,7 @@ import java.util.List;
 public class WorkspaceAnimator {
 
     private static final float BLUR_RADIUS = 60f;
+    private static final float WALLPAPER_DEPTH = 0.7f;
     private static final float WORKSPACE_SCALE = 0.92f;
     private static final int ANIM_DURATION = 200;
 
@@ -43,6 +44,14 @@ public class WorkspaceAnimator {
     }
 
     public void animate(boolean show, Runnable onEnd) {
+        animate(show, onEnd, true);
+    }
+
+    public void animateBlur(boolean show, Runnable onEnd) {
+        animate(show, onEnd, false);
+    }
+
+    private void animate(boolean show, Runnable onEnd, boolean scaleWorkspace) {
         Workspace<?> workspace = mLauncher.getWorkspace();
         if (workspace == null) return;
 
@@ -52,18 +61,20 @@ public class WorkspaceAnimator {
 
         float targetScale = show ? WORKSPACE_SCALE : 1f;
         float startScale = workspace.getScaleX();
-        float targetDepth = show ? 0.7f : 0f;
+        float targetDepth = show ? WALLPAPER_DEPTH : 0f;
 
         mAnimator = ValueAnimator.ofFloat(0f, 1f);
         mAnimator.setDuration(ANIM_DURATION);
         mAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator());
         mAnimator.addUpdateListener(anim -> {
             float fraction = anim.getAnimatedFraction();
-            float scale = startScale + (targetScale - startScale) * fraction;
-            workspace.setScaleX(scale);
-            workspace.setScaleY(scale);
+            if (scaleWorkspace) {
+                float scale = startScale + (targetScale - startScale) * fraction;
+                workspace.setScaleX(scale);
+                workspace.setScaleY(scale);
+            }
 
-            float depth = show ? (targetDepth * fraction) : (targetDepth * (1f - fraction));
+            float depth = show ? (targetDepth * fraction) : (WALLPAPER_DEPTH * (1f - fraction));
             setWallpaperDepth(depth);
 
             float blurRadius = show ? (BLUR_RADIUS * fraction) : (BLUR_RADIUS * (1f - fraction));

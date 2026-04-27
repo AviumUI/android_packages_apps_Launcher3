@@ -19,4 +19,9 @@
     <string name="pref_tablet_overview_style_title">使用平板樣式(需要重啟)</string>
     <string name="pref_tablet_overview_style_summary_on">使用平板樣式</string>
     <string name="pref_tablet_overview_style_summary_off">使用手機樣式</string>
+    <string name="avium_folder_action_enlarge">放大</string>
+    <string name="avium_folder_action_shrink">縮小</string>
+    <string name="avium_folder_action_edit">編輯</string>
+    <string name="avium_folder_size_title">資料夾大小</string>
+    <string name="avium_folder_size_value">%1$dx%2$d</string>
 </resources>

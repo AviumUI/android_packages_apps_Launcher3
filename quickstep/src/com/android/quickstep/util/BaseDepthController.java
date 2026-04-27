@@ -71,7 +71,8 @@ public class BaseDepthController {
 
     private static final int DEPTH_INDEX_STATE_TRANSITION = 0;
     private static final int DEPTH_INDEX_WIDGET = 1;
-    private static final int DEPTH_INDEX_COUNT = 2;
+    private static final int DEPTH_INDEX_FOLDER = 2;
+    private static final int DEPTH_INDEX_COUNT = 3;
 
     // b/291401432
     private static final String TAG = "BaseDepthController";
@@ -81,6 +82,8 @@ public class BaseDepthController {
     public final MultiProperty stateDepth;
     /** Property to set the depth for widget picker. */
     public final MultiProperty widgetDepth;
+    //Ext add
+    public final MultiProperty folderDepth;
 
     /**
      * Blur radius when completely zoomed out, in pixels.
@@ -143,6 +146,7 @@ public class BaseDepthController {
                 new MultiPropertyFactory<>(this, DEPTH, DEPTH_INDEX_COUNT, Float::max);
         stateDepth = depthProperty.get(DEPTH_INDEX_STATE_TRANSITION);
         widgetDepth = depthProperty.get(DEPTH_INDEX_WIDGET);
+        folderDepth = depthProperty.get(DEPTH_INDEX_FOLDER);
         mEarlyWakeupInfo.token = new Binder();
         mEarlyWakeupInfo.trace = BaseDepthController.class.getName();
     }

@@ -57,9 +57,9 @@ data class ClipRevealData(
                 val backgroundStartRect =
                     Rect(
                         previewOffsetX,
-                        contentOffsetY,
+                        contentTopOffset + contentOffsetY,
                         Math.round((previewOffsetX + initialFolderSize)),
-                        Math.round((contentOffsetY + initialFolderSize)),
+                        Math.round((contentTopOffset + contentOffsetY + initialFolderHeight)),
                     )
                 val backgroundEndRect = Rect(0, 0, layoutParams.width, layoutParams.height)
                 val finalBackgroundRadius = folderBackground.cornerRadius
@@ -80,10 +80,11 @@ data class ClipRevealData(
                     Rect(
                         (pageStart + (backgroundStartRect.left / initialFolderScale)).toInt() -
                             extraRadius,
-                        (backgroundStartRect.top / initialFolderScale).toInt() - extraRadius,
+                        (contentOffsetY / initialFolderScale).toInt() - extraRadius,
                         (pageStart + (backgroundStartRect.right / initialFolderScale)).toInt() +
                             extraRadius,
-                        (backgroundStartRect.bottom / initialFolderScale).toInt() + extraRadius,
+                        ((contentOffsetY + initialFolderHeight) / initialFolderScale).toInt() +
+                            extraRadius,
                     )
                 val contentEnd =
                     Rect(pageStart, 0, pageStart + layoutParams.width, layoutParams.height)
