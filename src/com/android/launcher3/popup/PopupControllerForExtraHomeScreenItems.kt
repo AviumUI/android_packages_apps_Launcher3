@@ -25,6 +25,8 @@ import com.android.launcher3.model.data.ItemInfo
 import com.android.launcher3.shortcuts.DeepShortcutView
 import com.android.launcher3.views.ActivityContext
 import com.android.launcher3.widget.LauncherAppWidgetHostView
+import org.avium.launcher.folder.AviumLargeFolderManager
+import org.avium.launcher.folder.AviumLargeFolderResizeFrame
 
 /**
  * Controller for home screen items: folders, app pairs, and widgets. This controller does not
@@ -52,6 +54,8 @@ class PopupControllerForExtraHomeScreenItems<T>(
         val resizeStrategy = DefaultPopupResizeStrategy()
         if (resizeStrategy.shouldShowResizeFrame(itemInfo, view, cellLayout)) {
             AppWidgetResizeFrame.showForWidget(view as LauncherAppWidgetHostView?, cellLayout)
+        } else if (AviumLargeFolderManager.isLargeFolderIcon(view)) {
+            AviumLargeFolderResizeFrame.showForFolder(view, cellLayout)
         }
         return container
     }

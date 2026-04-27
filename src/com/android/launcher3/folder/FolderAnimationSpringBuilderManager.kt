@@ -26,6 +26,8 @@ import com.android.launcher3.folder.FolderAnimationData.Factory.getAnimationData
 import com.android.launcher3.folder.FolderGridOrganizer.createFolderGridOrganizer
 import com.android.launcher3.folder.IconAnimationData.Factory.getIconAnimationDataList
 import com.android.launcher3.graphics.ShapeDelegate
+import org.avium.launcher.folder.AviumLargeFolderAnimationHelper
+import org.avium.launcher.folder.AviumLargeFolderManager
 
 /**
  * Manages the opening and closing animations for a [Folder].
@@ -45,7 +47,12 @@ class FolderAnimationSpringBuilderManager(
         resetLauncherScale(launcherDelegate.launcher?.workspace, launcherDelegate.launcher?.hotseat)
         val folderAnimData: FolderAnimationData = folder.getAnimationData(isOpening)
         val clipRevealData: ClipRevealData = folder.getClipRevealData(shapeDelegate, folderAnimData)
-        val iconAnimData: List<IconAnimationData> = folder.getIconAnimationDataList(folderAnimData)
+        val iconAnimData: List<IconAnimationData> =
+            if (AviumLargeFolderManager.isLargeFolder(folder.mInfo)) {
+                emptyList()
+            } else {
+                folder.getIconAnimationDataList(folderAnimData)
+            }
         return FolderSpringAnimatorSet.build(
                 folder = folder,
                 launcherDelegate = launcherDelegate,
@@ -74,6 +81,7 @@ class FolderAnimationSpringBuilderManager(
     companion object {
         /** Returns the list of "preview items" on {@param page}. */
         fun getPreviewIconsOnPage(folder: Folder, page: Int): List<View> {
+            AviumLargeFolderAnimationHelper.getPreviewIconsOnPage(folder, page)?.let { return it }
             return createFolderGridOrganizer(folder.mActivityContext.deviceProfile)
                 .setFolderInfo(folder.mInfo)
                 .previewItemsForPage(page, folder.iconsInReadingOrder)

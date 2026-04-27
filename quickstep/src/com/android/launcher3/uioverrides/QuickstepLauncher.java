@@ -183,6 +183,7 @@ import com.android.launcher3.uioverrides.touchcontrollers.TwoButtonNavbarTouchCo
 import com.android.launcher3.util.ActivityOptionsWrapper;
 import com.android.launcher3.util.DisplayController;
 import com.android.launcher3.util.IntSet;
+import com.android.launcher3.util.MultiPropertyFactory.MultiProperty;
 import com.android.launcher3.util.NavigationMode;
 import com.android.launcher3.util.ObjectWrapper;
 import com.android.launcher3.util.OverviewCommandHelperProtoLogProxy;
@@ -245,6 +246,9 @@ import com.android.wm.shell.shared.bubbles.logging.EntryPoint;
 import com.android.wm.shell.shared.desktopmode.DesktopModeStatus;
 import com.android.wm.shell.shared.desktopmode.DesktopState;
 
+import org.avium.launcher.FolderDepthController;
+import org.avium.launcher.anim.WorkspaceAnimator;
+
 import kotlin.Unit;
 
 import java.io.FileDescriptor;
@@ -262,6 +266,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
+        FolderDepthController,
         SystemShortcut.BubbleActivityStarter, AllAppsStore.OnUpdateListener {
     private static final boolean TRACE_LAYOUTS =
             SystemProperties.getBoolean("persist.debug.trace_layouts", false);
@@ -275,6 +280,7 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
     private PredictedContainerInfo mAllAppsPredictions;
     private HotseatPredictionController mHotseatPredictionController;
     private DepthController mDepthController;
+    private WorkspaceAnimator mFolderWorkspaceAnimator;
     private QuickstepTransitionManager mAppTransitionManager;
 
     private OverviewActionsView<?> mActionsView;
@@ -1359,6 +1365,19 @@ public class QuickstepLauncher extends Launcher implements RecentsViewContainer,
 
     public DepthController getDepthController() {
         return mDepthController;
+    }
+
+    @Override
+    public MultiProperty getFolderDepthProperty() {
+        return mDepthController.folderDepth;
+    }
+
+    @Override
+    public void animateFolderBlur(boolean show) {
+        if (mFolderWorkspaceAnimator == null) {
+            mFolderWorkspaceAnimator = new WorkspaceAnimator(this);
+        }
+        mFolderWorkspaceAnimator.animateBlur(show, null);
     }
 
     @Nullable

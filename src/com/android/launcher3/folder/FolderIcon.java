@@ -93,6 +93,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
+import org.avium.launcher.folder.AviumLargeFolderIconRenderer;
+import org.avium.launcher.folder.AviumLargeFolderManager;
+
 /**
  * An icon that can appear on in the workspace representing an {@link Folder}.
  */
@@ -142,6 +145,8 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
 
     private float mScaleForReorderBounce = 1f;
     private PopupController mPopupController;
+    private final AviumLargeFolderIconRenderer mLargeFolderIconRenderer =
+            new AviumLargeFolderIconRenderer();
 
     private static final Property<FolderIcon, Float> DOT_SCALE_PROPERTY
             = new Property<FolderIcon, Float>(Float.TYPE, "dotScale") {
@@ -230,11 +235,15 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         icon.mPreviewVerifier = createFolderGridOrganizer(activity.getDeviceProfile());
         icon.mPreviewVerifier.setFolderInfo(folderInfo);
         icon.updatePreviewItems(false);
+        AviumLargeFolderManager.syncIconState(icon);
 
         return icon;
     }
 
     public void animateBgShadowAndStroke() {
+        if (AviumLargeFolderManager.isLargeFolder(mInfo)) {
+            return;
+        }
         mBackground.fadeInBackgroundShadow();
         mBackground.animateBackgroundStroke();
     }
@@ -244,6 +253,10 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
     }
 
     public void getPreviewBounds(Rect outBounds) {
+        if (AviumLargeFolderManager.isLargeFolder(mInfo)) {
+            AviumLargeFolderManager.getIconBounds(this, outBounds);
+            return;
+        }
         mPreviewItemManager.recomputePreviewDrawingParams();
         mBackground.getBounds(outBounds);
         // The preview items go outside of the bounds of the background.
@@ -590,6 +603,11 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
 
         if (!mBackgroundIsVisible) return;
 
+        if (mLargeFolderIconRenderer.draw(canvas, this)) {
+            drawDot(canvas);
+            return;
+        }
+
         mPreviewItemManager.recomputePreviewDrawingParams();
 
         if (!mBackground.drawingDelegated()) {
@@ -628,6 +646,11 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        if (AviumLargeFolderManager.isLargeFolder(mInfo)) {
+            setPadding(getPaddingLeft(), 0, getPaddingRight(), getPaddingBottom());
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+            return;
+        }
         boolean shouldCenterIcon = mActivity.getDeviceProfile().getWorkspaceIconProfile()
                 .getIconCenterVertically();
         if (shouldCenterIcon) {
@@ -677,11 +700,14 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
      */
     public void updatePreviewItems(Predicate<ItemInfo> itemCheck) {
         mPreviewItemManager.updatePreviewItems(itemCheck);
+        mLargeFolderIconRenderer.clearIconCache();
     }
 
     public void onItemsChanged(boolean animate) {
+        mLargeFolderIconRenderer.clearIconCache();
         updatePreviewItems(false);
         updateDotInfo();
+        AviumLargeFolderManager.syncIconState(this);
         setContentDescription(getAccessiblityTitle(mInfo.title));
         updatePreviewItems(animate);
         invalidate();
@@ -698,6 +724,14 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
         if (event.getAction() == MotionEvent.ACTION_DOWN
                 && shouldIgnoreTouchDown(event.getX(), event.getY())) {
             return false;
+        }
+
+        if (event.getAction() == MotionEvent.ACTION_UP
+                && !mLongPressHelper.hasPerformedLongPress()
+                && AviumLargeFolderManager.handleTouchUp(this, event)) {
+            setPressed(false);
+            mLongPressHelper.cancelLongPress();
+            return true;
         }
 
         // Call the superclass onTouchEvent first, because sometimes it changes the state to
@@ -734,12 +768,18 @@ public class FolderIcon extends FrameLayout implements FloatingIconViewCompanion
     }
 
     public void drawLeaveBehindIfExists() {
+        if (AviumLargeFolderManager.isLargeFolder(mInfo)) {
+            return;
+        }
         if (getParent() instanceof FolderIconParent) {
             ((FolderIconParent) getParent()).drawFolderLeaveBehindForIcon(this);
         }
     }
 
     public void onFolderClose(int currentPage) {
+        if (AviumLargeFolderManager.isLargeFolder(mInfo)) {
+            return;
+        }
         mPreviewItemManager.onFolderClose(currentPage);
     }
 

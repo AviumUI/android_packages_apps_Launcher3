@@ -230,6 +230,7 @@ public class FolderInfo extends CollectionInfo {
     public void copyFrom(@NonNull ItemInfo info) {
         super.copyFrom(info);
         if (info instanceof FolderInfo fi) {
+            options = fi.options;
             contents.addAll(fi.getContents());
         }
     }

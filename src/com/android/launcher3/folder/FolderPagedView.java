@@ -392,10 +392,7 @@ public class FolderPagedView extends PagedView<PageIndicatorDots> implements Cli
         if (enableLauncherVisualRefresh()) {
             mFolder.onIndicatorVisibilityChanged();
         }
-        // Set the gravity as LEFT or RIGHT instead of START, as START depends on the actual text.
-        int horizontalGravity = getPageCount() > 1
-                ? (mIsRtl ? Gravity.RIGHT : Gravity.LEFT) : Gravity.CENTER_HORIZONTAL;
-        mFolder.getFolderName().setGravity(horizontalGravity | Gravity.CENTER_VERTICAL);
+        mFolder.getFolderName().setGravity(Gravity.CENTER);
     }
 
     public int getDesiredWidth() {
