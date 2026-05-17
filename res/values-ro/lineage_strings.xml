@@ -27,6 +27,8 @@
     <string name="drawer_show_labels">Arată etichetele pictogramelor în sertarul cu aplicaţii</string>
     <string name="drawer_open_keyboard_title">Glisați pentru a începe căutarea</string>
     <string name="drawer_open_keyboard_summary">Deschide tastatura ori de câte ori sertarul de aplicații devine vizibil</string>
+    <string name="pref_sleep_gesture_title">Dublă atingere pentru oprire ecran</string>
+    <string name="pref_sleep_gesture_summary">Atingeți de două ori spațiul gol de pe ecranul de pornire pentru a opri ecranul</string>
     <string name="trust_apps_manager_name">Aplicații Ascunse &amp; Protejate</string>
     <string name="trust_apps_auth_manager">Deblocați pentru a gestiona aplicaţiile ascunse şi protejate</string>
     <string name="trust_apps_auth_open_app">Autentificați-vă pentru a deschide %1$s</string>
@@ -37,4 +39,11 @@
     <string name="trust_apps_info_protected">Aplicațiile protejate necesită autentificare pentru a fi deschise din launcher</string>
     <string name="pref_suggestions_title">Sugestii</string>
     <string name="pref_suggestions_summary">Pentru toate aplicațiile &amp; sugestiile pentru ecranul de pornire</string>
+    <string name="pebble_shape_title">Pietriș</string>
+    <string name="vessel_shape_title">Navă</string>
+    <string name="pure_square_shape_title">Pătrat pur</string>
+    <string name="squircle_shape_title">Pătrat rotunjit</string>
+    <string name="tapered_rect_shape_title">Dreptunghi conic</string>
+    <string name="teardrop_shape_title">Lacrimă</string>
+    <string name="rounded_rect_shape_title">Dreptunghi rotund</string>
 </resources>

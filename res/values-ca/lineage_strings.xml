@@ -27,6 +27,8 @@
     <string name="drawer_show_labels">Mostra les etiquetes de les icones al calaix</string>
     <string name="drawer_open_keyboard_title">Llisca per iniciar la cerca</string>
     <string name="drawer_open_keyboard_summary">Obre el teclat sempre que el calaix d\'aplicacions sigui visible</string>
+    <string name="pref_sleep_gesture_title">Toqueu dues vegades per activar el repòs</string>
+    <string name="pref_sleep_gesture_summary">Toqueu dues vegades qualsevol espai buit de la pantalla d\'inici per apagar la pantalla</string>
     <string name="trust_apps_manager_name">Aplicacions amagades i protegides</string>
     <string name="trust_apps_auth_manager">Desbloqueja per gestionar les aplicacions amagades i protegides</string>
     <string name="trust_apps_auth_open_app">Autentifica per obrir %1$s</string>
@@ -37,4 +39,11 @@
     <string name="trust_apps_info_protected">Les aplicacions protegides requeriran autentificació per poder ser obertes des del llançador</string>
     <string name="pref_suggestions_title">Suggeriments</string>
     <string name="pref_suggestions_summary">Per obtenir suggeriments sobre el calaix d\'aplicacions i la pantalla d\'inici</string>
+    <string name="pebble_shape_title">Còdol</string>
+    <string name="vessel_shape_title">Vaixell</string>
+    <string name="pure_square_shape_title">Quadrat pur</string>
+    <string name="squircle_shape_title">Quadrat arrodonit</string>
+    <string name="tapered_rect_shape_title">Rectangle afilat</string>
+    <string name="teardrop_shape_title">Llàgrima</string>
+    <string name="rounded_rect_shape_title">Rectangle arrodonit</string>
 </resources>
