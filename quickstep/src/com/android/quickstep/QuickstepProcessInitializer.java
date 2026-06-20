@@ -109,8 +109,12 @@ public class QuickstepProcessInitializer extends MainProcessInitializer {
         // Get the allowed mime types from the resources.
         Set<String> allowedMimeTypes = Set.of(context.getResources().getStringArray(
                 R.array.allowed_image_mime_types));
-        ImageDecoder.setDefaultProcessListener(
-                new LauncherProcessImageListener(maxMemoryBytes, allowedMimeTypes));
+        try {
+            ImageDecoder.setDefaultProcessListener(
+                    new LauncherProcessImageListener(maxMemoryBytes, allowedMimeTypes));
+        } catch (NoSuchMethodError e) {
+            // Method not available on this platform version
+        }
     }
 
 }
