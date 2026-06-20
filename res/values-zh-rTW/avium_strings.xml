@@ -20,6 +20,7 @@
     <string name="pref_tablet_overview_style_summary_on">使用平板樣式</string>
     <string name="pref_tablet_overview_style_summary_off">使用手機樣式</string>
     <string name="avium_folder_action_enlarge">放大</string>
+    <string name="avium_gesture_swipe_up_hint">继续上滑以进入自由窗口</string>
     <string name="avium_folder_action_shrink">縮小</string>
     <string name="avium_folder_action_edit">編輯</string>
     <string name="avium_folder_size_title">資料夾大小</string>
