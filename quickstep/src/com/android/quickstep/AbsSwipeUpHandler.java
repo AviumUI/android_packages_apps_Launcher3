@@ -98,9 +98,6 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver.OnDrawListener;
 import android.view.ViewTreeObserver.OnScrollChangedListener;
 import android.view.WindowInsets;
-import android.view.animation.AccelerateDecelerateInterpolator;
-import android.view.animation.AlphaAnimation;
-import android.view.animation.AnimationSet;
 import android.view.animation.Interpolator;
 import android.widget.Toast;
 import android.window.DesktopExperienceFlags;
@@ -251,6 +248,7 @@ public abstract class AbsSwipeUpHandler<
     private static final String ACTION_PIN_LAST_APP = "org.avium.PINNED_LAST_APP";
     private boolean mAviumGestureHintShown = false;
     private FreeformHintView mFreeformHintView = null;
+    private boolean mOtherTaskViewsHidden = false;
     private static int FLAG_COUNT = 0;
     private static int getNextStateFlag(String name) {
         if (DEBUG_STATES) {
@@ -1054,7 +1052,10 @@ public abstract class AbsSwipeUpHandler<
             phase = FreeformHintView.HintPhase.HIDDEN;
         } else if (shift < CUSTOM_GESTURE_TRIGGER_THRESHOLD) {
             phase = FreeformHintView.HintPhase.SWIPE_UP_HINT;
+        } else{
+            phase = FreeformHintView.HintPhase.EXPAND;
         }
+
         if (mFreeformHintView == null) {
             mFreeformHintView = new FreeformHintView(mContext);
             mFreeformHintView.attachToContainer(mContainer);
@@ -1069,44 +1070,70 @@ public abstract class AbsSwipeUpHandler<
         mFreeformHintView.setPhase(phase);
 
         if (phase != FreeformHintView.HintPhase.EXPAND) {
-            restoreOtherTaskViews();
+            if (mOtherTaskViewsHidden) {
+                restoreOtherTaskViews();
+                mOtherTaskViewsHidden = false;
+            }
             return;
         }
+        // Always update task bounds while in EXPAND, even during horizontal scrolling
         if (mRecentsView != null) {
             TaskView runningTaskView = mRecentsView.getRunningTaskView();
             if (runningTaskView != null) {
                 Rect thumbnailBounds = new Rect();
-                runningTaskView.getThumbnailBounds(thumbnailBounds, /* relativeToDragLayer= */ true);
+                mContainer.getDragLayer().getDescendantRectRelativeToSelf(
+                        runningTaskView, thumbnailBounds);
+                android.util.Log.d("AviumGesture", "tb=" + thumbnailBounds.toShortString()
+                        + " pw=" + mContainer.getDragLayer().getWidth());
                 mFreeformHintView.setTaskBounds(thumbnailBounds);
             }
-            if (phase == FreeformHintView.HintPhase.EXPAND) {hideOtherTaskViews(runningTaskView);}
+            if (!mOtherTaskViewsHidden) {
+                hideOtherTaskViews(runningTaskView);
+                mOtherTaskViewsHidden = true;
+            }
         }
     }
 
     private void hideOtherTaskViews(TaskView runningTask) {
         if (mRecentsView == null) return;
-        for (int i = mRecentsView.getTaskViewCount(); i >= 0; i--) {
+        int count = mRecentsView.getTaskViewCount();
+        int centerPage = mRecentsView.getCurrentPage();
+        int animStart = Math.max(0, centerPage - 1);
+        int animEnd = Math.min(count - 1, centerPage + 1);
+        for (int i = 0; i < count; i++) {
             TaskView tv = mRecentsView.getTaskViewAt(i);
-            if (tv != null && tv != runningTask) {
+            if (tv == null || tv == runningTask) continue;
+            if (i >= animStart && i <= animEnd) {
+                tv.animate().cancel();
                 tv.animate()
                         .alpha(0f)
                         .setInterpolator(Interpolators.FAST_OUT_SLOW_IN)
-                        .setDuration(50)
+                        .setDuration(80)
                         .start();
+            } else {
+                tv.setVisibility(View.INVISIBLE);
             }
         }
     }
 
     private void restoreOtherTaskViews() {
         if (mRecentsView == null) return;
-        for (int i = mRecentsView.getTaskViewCount(); i >= 0; i--) {
+        int count = mRecentsView.getTaskViewCount();
+        int centerPage = mRecentsView.getCurrentPage();
+        int animStart = Math.max(0, centerPage - 1);
+        int animEnd = Math.min(count - 1, centerPage + 1);
+        for (int i = 0; i < count; i++) {
             TaskView tv = mRecentsView.getTaskViewAt(i);
-            if (tv != null) {
+            if (tv == null) continue;
+            if (i >= animStart && i <= animEnd) {
+                tv.animate().cancel();
                 tv.animate()
                         .alpha(1f)
                         .setInterpolator(Interpolators.FAST_OUT_SLOW_IN)
-                        .setDuration(50)
+                        .setDuration(80)
                         .start();
+            } else {
+                tv.setVisibility(View.VISIBLE);
             }
         }
     }
@@ -1678,6 +1705,7 @@ public abstract class AbsSwipeUpHandler<
             mFreeformHintView.detachFromContainer();
         }
         restoreOtherTaskViews();
+        mOtherTaskViewsHidden = false;
         long duration = MAX_SWIPE_DURATION;
         float currentShift = mCurrentShift.value;
 
