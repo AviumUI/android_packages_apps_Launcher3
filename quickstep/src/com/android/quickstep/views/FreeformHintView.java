@@ -15,6 +15,7 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,6 +26,7 @@ import androidx.annotation.IntDef;
 import com.android.app.animation.Interpolators;
 import com.android.launcher3.R;
 import com.android.launcher3.util.Themes;
+import com.android.quickstep.util.TaskCornerRadius;
 
 import static android.view.Surface.ROTATION_0;
 import static android.view.Surface.ROTATION_90;
@@ -35,7 +37,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /**
- * A hint view for freeform gesture.  Uses canvas and child-view alpha
+ * A hint view for Freeform gesture.  Uses canvas and child-view alpha
  * directly instead of View visibility/alpha on the container itself.
  */
 public class FreeformHintView extends FrameLayout {
@@ -47,7 +49,7 @@ public class FreeformHintView extends FrameLayout {
     public enum HintPhase { HIDDEN, SWIPE_UP_HINT, EXPAND }
 
     private static final int CARD_HEIGHT_DP = 56, CORNER_RADIUS_DP = 28, ICON_SIZE_DP = 24;
-    private static final int ICON_PADDING_DP = 16, TEXT_SIZE_SP = 14, CARD_MARGIN_DP = 12;
+    private static final int ICON_PADDING_DP = 16, TEXT_SIZE_SP = 14, CARD_MARGIN_DP = 8;
     private static final int ANIM_DURATION_MS = 250;
 
     private final Paint mBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -56,8 +58,9 @@ public class FreeformHintView extends FrameLayout {
     private final String mSwipeUpText;
     private final Rect mTaskBounds = new Rect();
 
-    private final float mCardHeight, mCornerRadius, mIconSize, mIconPadding;
+    private final float mCardHeight, mInnerCornerRadius, mIconSize, mIconPadding;
     private final int mCardMargin;
+    private final float taskViewCornerRadius;
 
     private final float mInnerPadding;
 
@@ -67,10 +70,12 @@ public class FreeformHintView extends FrameLayout {
     private boolean mIsVisible, mHasTaskBounds;
     private float mHintAlpha = 0f, mScale = 0.85f, mExpandProgress = 0f;
     private String mDisplayText;
+    private float contentAlpha;
 
     private ValueAnimator mProgressAnimator;
     private AnimatorSet mVisibilityAnimator;
     private final int[] mPosTmp = new int[2];
+    ViewGroup dragLayer;
 
     private ImageView mIconView;
 
@@ -82,11 +87,12 @@ public class FreeformHintView extends FrameLayout {
         float density = res.getDisplayMetrics().density;
 
         mCardHeight = CARD_HEIGHT_DP * density;
-        mCornerRadius = CORNER_RADIUS_DP * density;
+        mInnerCornerRadius = CORNER_RADIUS_DP * density;
         mIconSize = ICON_SIZE_DP * density;
         mIconPadding = ICON_PADDING_DP * density;
         mCardMargin = (int) (CARD_MARGIN_DP * density);
-        mInnerPadding = 12 * density;
+        mInnerPadding = 4 * density;
+        taskViewCornerRadius = TaskCornerRadius.get(context);
 
         mBgPaint.setColor(Themes.getColorAccent(getContext()));
         mBgPaint.setStyle(Paint.Style.FILL);
@@ -140,7 +146,7 @@ public class FreeformHintView extends FrameLayout {
 
             case EXPAND:
                 if (prev == HintPhase.SWIPE_UP_HINT) {
-                    adjustProgressAnimation(1f, () -> mDisplayText = null);
+                    adjustProgressAnimation(1f, null);
                 }
                 break;
         }
@@ -149,13 +155,14 @@ public class FreeformHintView extends FrameLayout {
     public void setDisplayRotation(@SurfaceRotation int rotation) {
         if (mRotation == rotation) return;
         mRotation = rotation;
+        mIconView.setRotation(mRotation*90f);
         if (mIsVisible) {
             updatePositionAndSize();
         }
     }
 
     public void setTaskBounds(Rect bounds) {
-        if (bounds == null) {
+        if (bounds == null||dragLayer==null) {
             mHasTaskBounds = false;
             return;
         }
@@ -163,11 +170,12 @@ public class FreeformHintView extends FrameLayout {
         mHasTaskBounds = true;
         if (mPhase == HintPhase.EXPAND) {
             updatePositionAndSize();
+            requestLayout();
         }
     }
 
     public void attachToContainer(RecentsViewContainer container) {
-        ViewGroup dragLayer = container.getDragLayer();
+        dragLayer = container.getDragLayer();
         if (dragLayer == null || getParent() != null) return;
 
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
@@ -186,9 +194,8 @@ public class FreeformHintView extends FrameLayout {
 
     public void detachFromContainer() {
         cancelAnimators();
-        if (getParent() instanceof ViewGroup) {
-            ((ViewGroup) getParent()).removeView(this);
-        }
+        if (dragLayer == null || getParent() != null) return;
+        dragLayer.removeView(this);
     }
 
     public void destroy() {
@@ -249,10 +256,7 @@ public class FreeformHintView extends FrameLayout {
                 mHintAlpha = visible ? 1f : 0f;
                 applyContentAlpha();
                 invalidate();
-
-                if (!visible) {
-                    requestLayout(); // shrink to 0 size when fully hidden
-                }
+                requestLayout();
             }
         });
         mVisibilityAnimator = set;
@@ -260,9 +264,8 @@ public class FreeformHintView extends FrameLayout {
     }
 
     private void applyContentAlpha() {
-        // Compute transparency of the icon and text (fades out during expand)
-        float contentAlpha = (mPhase == HintPhase.EXPAND)
-                ? Math.max(0f, 1f - mExpandProgress * 2f)
+        contentAlpha = (mPhase == HintPhase.EXPAND)
+                ? Math.max(0f, 1f - mExpandProgress)
                 : 1f;
 
         // Icon – handled by the child ImageView
@@ -301,18 +304,26 @@ public class FreeformHintView extends FrameLayout {
             return;
         }
 
-        int hintW = computeHintCardWidth();
-        int hintH = (int) mCardHeight;
-
-        if (mHasTaskBounds && mExpandProgress > 0f) {
-            int taskW = mTaskBounds.width() + mCardMargin * 2;
-            int taskH = mTaskBounds.height() + mCardMargin * 2;
-            setMeasuredDimension(
-                    (int) (hintW + (taskW - hintW) * mExpandProgress),
-                    (int) (hintH + (taskH - hintH) * mExpandProgress));
+        int hintW, hintH;
+        if (mRotation==ROTATION_90||mRotation==ROTATION_270) {
+            hintH = computeHintCardWidth();
+            hintW = (int) mCardHeight;
         } else {
-            setMeasuredDimension(hintW, hintH);
+            hintW = computeHintCardWidth();
+            hintH = (int) mCardHeight;
         }
+
+		int measuredW = hintW;
+		int measuredH = hintH;
+        int taskW = mTaskBounds.width() + mCardMargin * 2;
+        int taskH = mTaskBounds.height() + mCardMargin * 2;
+
+		if (mHasTaskBounds && mExpandProgress > 0f) {
+			measuredW = (int) (hintW + (taskW - hintW) * mExpandProgress);
+			measuredH = (int) (hintH + (taskH - hintH) * mExpandProgress);
+		}
+
+        setMeasuredDimension(measuredW, measuredH);
 
         measureChildren(widthMeasureSpec, heightMeasureSpec);
     }
@@ -340,12 +351,12 @@ public class FreeformHintView extends FrameLayout {
             ch = (int) (hintH + (taskH - hintH) * mExpandProgress);
 
             getSmallCardPos(pw, ph, hintW, hintH, mPosTmp);
-            float halfW = cw / 2f;
-            float halfH = ch / 2f;
-            int cx = (int) (mPosTmp[0] + halfW + (mTaskBounds.centerX() - (mPosTmp[0] + halfW)) * mExpandProgress);
-            int cy = (int) (mPosTmp[1] + halfH + (mTaskBounds.centerY() - (mPosTmp[1] + halfH)) * mExpandProgress);
-            l = cx - cw / 2;
-            t = cy - ch / 2;
+            float startCx = mPosTmp[0] + hintW / 2f;
+            float startCy = mPosTmp[1] + hintH / 2f;
+            float curCx = startCx + (mTaskBounds.centerX() - startCx) * mExpandProgress;
+            float curCy = startCy + (mTaskBounds.centerY() - startCy) * mExpandProgress;
+            l = (int) (curCx - cw / 2f);
+            t = (int) (curCy - ch / 2f);
         } else {
             cw = hintW;
             ch = hintH;
@@ -353,9 +364,6 @@ public class FreeformHintView extends FrameLayout {
             l = mPosTmp[0];
             t = mPosTmp[1];
         }
-
-        l = Math.max(0, Math.min(l, pw - cw));
-        t = Math.max(0, Math.min(t, ph - ch));
 
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
         if (lp != null) {
@@ -368,7 +376,6 @@ public class FreeformHintView extends FrameLayout {
                 setLayoutParams(lp);
             }
         }
-
         invalidate();
     }
 
@@ -382,28 +389,29 @@ public class FreeformHintView extends FrameLayout {
         return id > 0 ? getResources().getDimensionPixelSize(id) : (int) (48 * getResources().getDisplayMetrics().density);
     }
 
-    private void getSmallCardPos(int pw, int ph, int cw, int ch, int[] out) {
-        int sbH = statusBarHeight();
-        int nbH = navigationBarHeight();
-        switch (mRotation) {
-            case ROTATION_90:
-                out[0] = mCardMargin;
-                out[1] = mCardMargin + sbH;
-                break;
-            case ROTATION_270:
-                out[0] = pw - cw - mCardMargin;
-                out[1] = mCardMargin + sbH;
-                break;
-            case ROTATION_180:
-                out[0] = mCardMargin;
-                out[1] = mCardMargin + nbH;
-                break;
-            default: // ROTATION_0
-                out[0] = pw - cw - mCardMargin;
-                out[1] = mCardMargin + sbH;
-                break;
-        }
+private void getSmallCardPos(int pw, int ph, int cw, int ch, int[] out) {
+    int sbH = statusBarHeight();
+    int nbH = navigationBarHeight();
+    
+    switch (mRotation) {
+        case ROTATION_270:
+            out[0] = mCardMargin + sbH;
+            out[1] = mCardMargin;
+            break;
+        case ROTATION_90:
+            out[0] = pw - ch - mCardMargin - sbH;
+            out[1] = ph - cw - mCardMargin;
+            break;
+        case ROTATION_180:
+            out[0] = pw - ch - mCardMargin;
+            out[1] = ph - ch - mCardMargin - nbH;
+            break;
+        default: // ROTATION_0
+            out[0] = pw - cw - mCardMargin;
+            out[1] = mCardMargin + sbH;
+            break;
     }
+}
 
     @Override
     protected void onDraw(@NonNull Canvas canvas) {
@@ -417,22 +425,32 @@ public class FreeformHintView extends FrameLayout {
 
         // Background opacity
         int bgAlpha = (int) (255 * mHintAlpha);
+        float mCornerRadius = mInnerCornerRadius - (mInnerCornerRadius - taskViewCornerRadius) * mExpandProgress + mInnerPadding;
         mBgPaint.setAlpha(bgAlpha);
         mCardRect.set(0, 0, w, h);
         canvas.drawRoundRect(mCardRect, mCornerRadius, mCornerRadius, mBgPaint);
+        canvas.save();
 
-        // Text (only when there is something to show)
-        float contentAlpha = (mPhase == HintPhase.EXPAND)
-                ? Math.max(0f, 1f - mExpandProgress * 2f)
-                : 1f;
+		if (contentAlpha > 0f && mDisplayText != null) {
+			canvas.save();
+			
+			int textAlpha = (int) (255 * mHintAlpha * contentAlpha);
+			mTextPaint.setAlpha(textAlpha);
+			float logicalW = (mRotation == ROTATION_90 || mRotation == ROTATION_270) ? h : w;
+			float logicalH = (mRotation == ROTATION_90 || mRotation == ROTATION_270) ? w : h;
 
-        if (contentAlpha > 0f && mDisplayText != null) {
-            int textAlpha = (int) (255 * mHintAlpha * contentAlpha);
-            mTextPaint.setAlpha(textAlpha);
-            float tx = mIconPadding + mIconSize + mInnerPadding;
-            float ty = h / 2f - (mTextPaint.descent() + mTextPaint.ascent()) / 2f;
-            canvas.drawText(mDisplayText, tx, ty, mTextPaint);
-        }
+			// icon 处理旋转太麻烦了，干脆直接让文字避让一下。手性异构（
+			float tx = (mRotation==ROTATION_270 ? 0 : (mIconSize)) + mInnerPadding + mIconPadding;
+			float ty = logicalH / 2f - (mTextPaint.descent() + mTextPaint.ascent()) / 2f;
 
+			canvas.rotate(mRotation * 90f, w / 2f, h / 2f);
+
+			if (mRotation == ROTATION_90 || mRotation == ROTATION_270) {
+				canvas.translate((w - logicalW) / 2f, (h - logicalH) / 2f);
+			}
+
+			canvas.drawText(mDisplayText, tx, ty, mTextPaint);
+			canvas.restore();
+		}
     }
 }
