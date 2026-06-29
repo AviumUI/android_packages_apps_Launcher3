@@ -81,7 +81,9 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Matrix;
 import android.graphics.PointF;
-import android.graphics.Rect;
+import android.graphics.Rect;import android.graphics.Bitmap;import android.os.Bundle;
+
+
 import android.graphics.RectF;
 import android.os.IBinder;
 import android.os.SystemClock;
@@ -98,6 +100,9 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver.OnDrawListener;
 import android.view.ViewTreeObserver.OnScrollChangedListener;
 import android.view.WindowInsets;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.AnimationSet;
 import android.view.animation.Interpolator;
 import android.widget.Toast;
 import android.window.DesktopExperienceFlags;
@@ -113,6 +118,9 @@ import android.os.UserHandle;
 import android.app.ActivityTaskManager;
 
 import com.android.quickstep.views.TaskView;
+import com.android.quickstep.RecentsModel;
+import com.android.quickstep.views.TaskContainer;
+
 import com.android.systemui.shared.recents.model.Task;
 import com.android.quickstep.GestureState;
 import com.android.quickstep.TopTaskTracker.CachedTaskInfo;
@@ -139,6 +147,7 @@ import com.android.launcher3.anim.PendingAnimation;
 import com.android.launcher3.compat.AccessibilityManagerCompat;
 import com.android.launcher3.dagger.LauncherComponentProvider;
 import com.android.launcher3.dragndrop.DragView;
+import com.android.launcher3.dragndrop.DragLayer;
 import com.android.launcher3.logging.StatsLogManager;
 import com.android.launcher3.logging.StatsLogManager.StatsLogger;
 import com.android.launcher3.statehandlers.DesktopVisibilityController;
@@ -179,6 +188,7 @@ import com.android.quickstep.views.RecentsView;
 import com.android.quickstep.views.RecentsViewContainer;
 import com.android.quickstep.views.TaskContainer;
 import com.android.quickstep.views.TaskView;
+
 import com.android.quickstep.views.TaskViewType;
 import com.android.quickstep.window.RecentsWindowManager;
 import com.android.systemui.contextualeducation.GestureType;
@@ -189,6 +199,7 @@ import com.android.systemui.shared.system.InteractionJankMonitorWrapper;
 import com.android.systemui.shared.system.SysUiStatsLog;
 import com.android.systemui.shared.system.TaskStackChangeListener;
 import com.android.systemui.shared.system.TaskStackChangeListeners;
+import com.android.systemui.shared.recents.model.ThumbnailData;
 import com.android.wm.shell.shared.GroupedTaskInfo;
 import com.android.wm.shell.shared.TransactionPool;
 import com.android.wm.shell.shared.desktopmode.DesktopModeStatus;
@@ -247,7 +258,6 @@ public abstract class AbsSwipeUpHandler<
     private static final float FREEFORM_HINT_START = 1.5f;
     private static final String ACTION_PIN_LAST_APP = "org.avium.PINNED_LAST_APP";
     private boolean mAviumGestureHintShown = false;
-    private FreeformHintView mFreeformHintView = null;
     private boolean mOtherTaskViewsHidden = false;
     private static int FLAG_COUNT = 0;
     private static int getNextStateFlag(String name) {
@@ -257,6 +267,19 @@ public abstract class AbsSwipeUpHandler<
         int index = 1 << FLAG_COUNT;
         FLAG_COUNT++;
         return index;
+    }
+
+    private FreeformHintView getFreeformHintView() {
+        if (mContainer == null) {
+            Log.d(TAG, "getFreeformHintView: mContainer is null");
+            return null;
+        }
+        ViewGroup dragLayer = mContainer.getDragLayer();
+        if (dragLayer instanceof DragLayer) {
+            return ((DragLayer) dragLayer).ensureFreeformHintView();
+        }
+        Log.d(TAG, "getFreeformHintView: dragLayer=" + dragLayer + " not DragLayer, mContainer=" + mContainer);
+        return null;
     }
 
     // Launcher UI related states
@@ -1055,37 +1078,33 @@ public abstract class AbsSwipeUpHandler<
         } else{
             phase = FreeformHintView.HintPhase.EXPAND;
         }
-
-        if (mFreeformHintView == null) {
-            mFreeformHintView = new FreeformHintView(mContext);
-            mFreeformHintView.attachToContainer(mContainer);
+        if (mContainer == null) return;
+        FreeformHintView freeformHintView = getFreeformHintView();
+        if (freeformHintView == null) {
+            ViewGroup dl = mContainer.getDragLayer();
+            if (dl instanceof DragLayer) {
+                freeformHintView = ((DragLayer) dl).ensureFreeformHintView();
+            }
         }
 
         // Pass current display rotation for orientation-aware positioning
         if (mRecentsView != null) {
-            mFreeformHintView.setDisplayRotation(
+            freeformHintView.setDisplayRotation(
                     mRecentsView.getPagedViewOrientedState().getDisplayRotation());
         }
 
-        mFreeformHintView.setPhase(phase);
+        freeformHintView.setPhase(phase);
 
         if (phase != FreeformHintView.HintPhase.EXPAND) {
-            if (mOtherTaskViewsHidden) {
-                restoreOtherTaskViews();
-                mOtherTaskViewsHidden = false;
-            }
+            restoreOtherTaskViews();
             return;
         }
-        // Always update task bounds while in EXPAND, even during horizontal scrolling
         if (mRecentsView != null) {
             TaskView runningTaskView = mRecentsView.getRunningTaskView();
             if (runningTaskView != null) {
                 Rect thumbnailBounds = new Rect();
-                mContainer.getDragLayer().getDescendantRectRelativeToSelf(
-                        runningTaskView, thumbnailBounds);
-                android.util.Log.d("AviumGesture", "tb=" + thumbnailBounds.toShortString()
-                        + " pw=" + mContainer.getDragLayer().getWidth());
-                mFreeformHintView.setTaskBounds(thumbnailBounds);
+                runningTaskView.getThumbnailBounds(thumbnailBounds, /* relativeToDragLayer= */ true);
+                freeformHintView.setTaskBounds(thumbnailBounds);
             }
             if (!mOtherTaskViewsHidden) {
                 hideOtherTaskViews(runningTaskView);
@@ -1095,7 +1114,8 @@ public abstract class AbsSwipeUpHandler<
     }
 
     private void hideOtherTaskViews(TaskView runningTask) {
-        if (mRecentsView == null) return;
+        if (mRecentsView == null||mOtherTaskViewsHidden) return;
+        mOtherTaskViewsHidden = true;
         int count = mRecentsView.getTaskViewCount();
         int centerPage = mRecentsView.getCurrentPage();
         int animStart = Math.max(0, centerPage - 1);
@@ -1117,7 +1137,8 @@ public abstract class AbsSwipeUpHandler<
     }
 
     private void restoreOtherTaskViews() {
-        if (mRecentsView == null) return;
+        if (mRecentsView == null||!mOtherTaskViewsHidden) return;
+        mOtherTaskViewsHidden = false;
         int count = mRecentsView.getTaskViewCount();
         int centerPage = mRecentsView.getCurrentPage();
         int animStart = Math.max(0, centerPage - 1);
@@ -1241,6 +1262,10 @@ public abstract class AbsSwipeUpHandler<
 
     @Override
     public void onRecentsAnimationCanceled(HashMap<Integer, ThumbnailData> thumbnailDatas) {
+        FreeformHintView freeformHintView = getFreeformHintView();
+        if (freeformHintView != null) {
+            freeformHintView.setPhase(FreeformHintView.HintPhase.HIDDEN);
+        }
         ActiveGestureProtoLogProxy.logAbsSwipeUpHandlerOnRecentsAnimationCanceled();
         mContextInitListener.unregister("AbsSwipeUpHandler.onRecentsAnimationCanceled");
         mStateCallback.setStateOnUiThread(STATE_GESTURE_CANCELLED | STATE_HANDLER_INVALIDATED);
@@ -1357,6 +1382,11 @@ public abstract class AbsSwipeUpHandler<
         } else {
             mLogDirectionUpOrLeft = velocityPxPerMs.x < 0;
         }
+        FreeformHintView freeformHintView = getFreeformHintView();
+        if (freeformHintView != null) {
+            freeformHintView.setPhase(FreeformHintView.HintPhase.HIDDEN);
+        }
+        restoreOtherTaskViews();
         Runnable handleNormalGestureEndCallback = () -> handleNormalGestureEnd(
                 endVelocityPxPerMs,
                 isFling,
@@ -1691,21 +1721,12 @@ public abstract class AbsSwipeUpHandler<
         if (progress > CUSTOM_GESTURE_TRIGGER_THRESHOLD && isAviumGestureEnable) {
             onAviumFloatWindowGesture();
             finalEndTarget = GestureState.GestureEndTarget.REJECT_HOME;
-            if (mFreeformHintView != null) {
-                mFreeformHintView.setPhase(FreeformHintView.HintPhase.HIDDEN);
-                mFreeformHintView.detachFromContainer();
-            }
         } else {
             finalEndTarget = calculatedEndTarget;
+            // Reset gesture hint state when gesture ends
+            mAviumGestureHintShown = false;
+            restoreOtherTaskViews();
         }
-        // Reset gesture hint state when gesture ends
-        mAviumGestureHintShown = false;
-        if (mFreeformHintView != null) {
-            mFreeformHintView.setPhase(FreeformHintView.HintPhase.HIDDEN);
-            mFreeformHintView.detachFromContainer();
-        }
-        restoreOtherTaskViews();
-        mOtherTaskViewsHidden = false;
         long duration = MAX_SWIPE_DURATION;
         float currentShift = mCurrentShift.value;
 
@@ -2695,12 +2716,21 @@ public abstract class AbsSwipeUpHandler<
 
     private void finishCurrentTransitionToRecents() {
         mStateCallback.setStateOnUiThread(STATE_CURRENT_TASK_FINISHED);
+        FreeformHintView freeformHintView = getFreeformHintView();
+        if (freeformHintView != null) {
+            freeformHintView.setPhase(FreeformHintView.HintPhase.HIDDEN);
+        }
+        restoreOtherTaskViews();
         if (mRecentsAnimationController != null) {
             mRecentsAnimationController.detachNavigationBarFromApp(true);
         }
     }
 
     private void finishCurrentTransitionToHome() {
+        FreeformHintView freeformHintView = getFreeformHintView();
+        if (freeformHintView != null) {
+            freeformHintView.setPhase(FreeformHintView.HintPhase.HIDDEN);
+        }
         if (!hasTargets() || mRecentsAnimationController == null) {
             // If there are no targets or the animation not started, then there is nothing to finish
             mStateCallback.setStateOnUiThread(STATE_CURRENT_TASK_FINISHED);
@@ -3348,9 +3378,9 @@ public abstract class AbsSwipeUpHandler<
     }
 
     private void onAviumFloatWindowGesture() {
-        Log.d("AviumLauncher", "Custom gesture triggered. Getting current task to launch in freeform.");
-
+        Log.d(TAG, "onAviumFloatWindowGesture: entering");
         if (mContext == null) {
+            Log.d(TAG, "onAviumFloatWindowGesture: mContext is null, returning");
             return;
         }
 
@@ -3373,17 +3403,140 @@ public abstract class AbsSwipeUpHandler<
         }
 
         if (taskId <= 0) {
-
+            Log.d(TAG, "onAviumFloatWindowGesture: taskId=" + taskId + " invalid, returning");
             return;
         }
 
-        final ActivityOptions options = ActivityOptions.makeBasic();
-        options.setLaunchWindowingMode(101); 
-
-        try {
-            ActivityTaskManager.getService().startActivityFromRecents(taskId, options.toBundle());
-        } catch (Exception e) {
-            //do nothing
+        // Try to capture thumbnail for transition animation
+        TaskView runningTaskView = mRecentsView != null ? mRecentsView.getRunningTaskView() : null;
+        List<TaskContainer> containers = runningTaskView.getTaskContainers();
+        Log.d(TAG, "onAviumFloatWindowGesture: taskId=" + taskId + " containers.isEmpty=" + containers.isEmpty());
+        if (containers.isEmpty()) {
+            final ActivityOptions opts = ActivityOptions.makeBasic();
+            opts.setLaunchWindowingMode(101);
+            try {
+                ActivityTaskManager.getService().startActivityFromRecents(taskId, opts.toBundle());
+            } catch (Exception ex) {
+            }
+            return;
         }
+        com.android.systemui.shared.recents.model.Task task = containers.get(0).getTask();
+
+        RecentsModel.INSTANCE.get(mContext)
+            .getThumbnailCache()
+            .getThumbnailInBackground(task, (ThumbnailData data) -> {
+                Log.d(TAG, "onAviumFloatWindowGesture: thumbnail callback, data=" + (data != null) + " thumbnail=" + (data != null && data.getThumbnail() != null));
+                if (runningTaskView == null) {
+                    Log.d(TAG, "onAviumFloatWindowGesture: runningTaskView null in callback, fallback start");
+                    final ActivityOptions opts = ActivityOptions.makeBasic();
+                    opts.setLaunchWindowingMode(101);
+                    try {
+                        ActivityTaskManager.getService().startActivityFromRecents(taskId, opts.toBundle());
+                    } catch (Exception ex) {
+                    }
+                    return;
+                }
+                if (data == null || data.getThumbnail() == null) {
+                    Log.d(TAG, "onAviumFloatWindowGesture: thumbnail null, fallback start");
+                    final ActivityOptions opts = ActivityOptions.makeBasic();
+                    opts.setLaunchWindowingMode(101);
+                    try {
+                        ActivityTaskManager.getService().startActivityFromRecents(taskId, opts.toBundle());
+                    } catch (Exception ex) {
+                    }
+                    return;
+                }
+                Bitmap thumbnail = data.getThumbnail();
+                Rect srcRect = new Rect();
+                runningTaskView.getThumbnailBounds(srcRect, true);
+
+                Rect destRect = new Rect();
+                float pinnedCornerRadius = 0f;
+                try {
+                    Log.d(TAG, "onAviumFloatWindowGesture: calling getPinnedLayoutInfo taskId=" + taskId);
+                    Bundle layoutInfo = ActivityTaskManager.getService().getPinnedLayoutInfo(taskId);
+                    Log.d(TAG, "onAviumFloatWindowGesture: getPinnedLayoutInfo returned, layoutInfo=" + (layoutInfo != null));
+                    if (layoutInfo != null) {
+                        Rect r = layoutInfo.getParcelable("visualRect", Rect.class);
+                        if (r != null) destRect.set(r);
+                        pinnedCornerRadius = layoutInfo.getFloat("cornerRadius", 0f);
+                        boolean isMiniScaled = layoutInfo.getBoolean("isMiniScaled", false);
+                        Log.d(TAG, "onAviumFloatWindowGesture: isMiniScaled=" + isMiniScaled);
+                    }
+                } catch (Exception ex) {
+                    final ActivityOptions opts = ActivityOptions.makeBasic();
+                    opts.setLaunchWindowingMode(101);
+                    try {
+                        ActivityTaskManager.getService().startActivityFromRecents(taskId, opts.toBundle());
+                    } catch (Exception ex2) {
+                    }
+                    return;
+                }
+
+                Log.d(TAG, "onAviumFloatWindowGesture: destRect=" + destRect + " srcRect=" + srcRect + " cornerRadius=" + pinnedCornerRadius);
+                if (destRect.isEmpty()) {
+                    Log.d(TAG, "onAviumFloatWindowGesture: destRect empty, fallback start");
+                    final ActivityOptions opts = ActivityOptions.makeBasic();
+                    opts.setLaunchWindowingMode(101);
+                    try {
+                        ActivityTaskManager.getService().startActivityFromRecents(taskId, opts.toBundle());
+                    } catch (Exception ex) {
+                    }
+                    return;
+                }
+
+                ViewGroup dragLayer = (ViewGroup) mContainer.getDragLayer();
+                int[] dlLoc = new int[2];
+                dragLayer.getLocationOnScreen(dlLoc);
+                destRect.offset(-dlLoc[0], -dlLoc[1]);
+
+                // Downscale bitmap if needed
+                int maxDim = Math.max(srcRect.width(), srcRect.height());
+                if (maxDim > 800) {
+                    float ratio = 800f / maxDim;
+                    thumbnail = Bitmap.createScaledBitmap(thumbnail,
+                            (int) (thumbnail.getWidth() * ratio),
+                            (int) (thumbnail.getHeight() * ratio), true);
+                }
+
+                FreeformHintView hintView = getFreeformHintView();
+                if (hintView == null) {
+                    Log.d(TAG, "onAviumFloatWindowGesture: hintView null after gesture trigger, aborting");
+                    return;
+                }
+
+                Log.d(TAG, "onAviumFloatWindowGesture: calling playTransitionToPinned");
+                // Register listener to hide hint when pinned window is ready (task moves to front)
+                final int finalTaskId = taskId;
+                final FreeformHintView capturedHintView = hintView;
+                TaskStackChangeListener pinnedListener = new TaskStackChangeListener() {
+                    @Override
+                    public void onTaskMovedToFront(ActivityManager.RunningTaskInfo taskInfo) {
+                        if (taskInfo.taskId == finalTaskId) {
+                            TaskStackChangeListeners.getInstance().unregisterTaskStackListener(this);
+                            if (capturedHintView != null) capturedHintView.setPhase(FreeformHintView.HintPhase.HIDDEN);
+                        }
+                    }
+                };
+                mRecentsView.setVisibility(View.INVISIBLE);
+                mRecentsView.setEnableDrawingLiveTile(false);
+                int count = mRecentsView.getTaskViewCount();
+                int centerPage = mRecentsView.getCurrentPage();
+                for (int i = 0; i < count; i++) {
+                    mRecentsView.getTaskViewAt(i).setAlpha(0f);
+                }
+                TaskStackChangeListeners.getInstance().registerTaskStackListener(pinnedListener);
+                final ActivityOptions opts = ActivityOptions.makeBasic();
+                opts.setLaunchWindowingMode(101);
+                opts.toBundle().putBoolean("avium_from_quickstep", true);
+                try {
+                    ActivityTaskManager.getService().startActivityFromRecents(taskId, opts.toBundle());
+                } catch (Exception ex) {
+                }
+                hintView.playTransitionToPinned(thumbnail, srcRect, destRect, pinnedCornerRadius, () -> {
+                    Log.d(TAG, "onAviumFloatWindowGesture: transition onEnd, startActivity");
+                    restoreOtherTaskViews();
+                });
+            });
     }
 }

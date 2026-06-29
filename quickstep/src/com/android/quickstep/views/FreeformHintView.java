@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2026 The AviumUI Project
+
  */
 package com.android.quickstep.views;
 
@@ -13,9 +14,10 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.Bitmap;
+import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,6 +30,7 @@ import com.android.launcher3.R;
 import com.android.launcher3.util.Themes;
 import com.android.quickstep.util.TaskCornerRadius;
 
+import android.util.Log;
 import static android.view.Surface.ROTATION_0;
 import static android.view.Surface.ROTATION_90;
 import static android.view.Surface.ROTATION_180;
@@ -41,12 +44,13 @@ import java.lang.annotation.RetentionPolicy;
  * directly instead of View visibility/alpha on the container itself.
  */
 public class FreeformHintView extends FrameLayout {
+    private static final String TAG = "FreeformHintView";
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({ROTATION_0, ROTATION_90, ROTATION_180, ROTATION_270})
     public @interface SurfaceRotation {}
 
-    public enum HintPhase { HIDDEN, SWIPE_UP_HINT, EXPAND }
+    public enum HintPhase { HIDDEN, SWIPE_UP_HINT, EXPAND, TRANSITION }
 
     private static final int CARD_HEIGHT_DP = 56, CORNER_RADIUS_DP = 28, ICON_SIZE_DP = 24;
     private static final int ICON_PADDING_DP = 16, TEXT_SIZE_SP = 14, CARD_MARGIN_DP = 8;
@@ -70,15 +74,21 @@ public class FreeformHintView extends FrameLayout {
     private boolean mIsVisible, mHasTaskBounds;
     private float mHintAlpha = 0f, mScale = 0.85f, mExpandProgress = 0f;
     private String mDisplayText;
-    private float contentAlpha;
+    private float mContentAlpha;
 
     private ValueAnimator mProgressAnimator;
     private AnimatorSet mVisibilityAnimator;
     private final int[] mPosTmp = new int[2];
-    ViewGroup dragLayer;
 
     private ImageView mIconView;
-
+	private Bitmap mTaskBitmap;
+	private final Rect mTransitionFromRect = new Rect(), mTransitionToRect = new Rect();
+	private float mTransitionSrcCornerRadius, mTransitionDstCornerRadius, mCurrentTransitionCornerRadius;
+	private Runnable mTransitionOnEnd;
+	private float mTransitionProgress = 0f;
+	private int[] mTransitionStartMargins = new int[2];
+	private int[] mTransitionStartSize = new int[2];
+	
     public FreeformHintView(Context context) {
         super(context);
         setLayerType(LAYER_TYPE_HARDWARE, null);
@@ -119,9 +129,13 @@ public class FreeformHintView extends FrameLayout {
         setScaleY(0.85f);
     }
 
-
     public void setPhase(@NonNull HintPhase phase) {
         if (mPhase == phase) return;
+        // Unlock mPhase in onEnd
+        if (mPhase == HintPhase.TRANSITION) {
+            Log.d(TAG, "setPhase: blocking " + phase + ", transition still running");
+            return;
+        }
         HintPhase prev = mPhase;
         mPhase = phase;
 
@@ -149,6 +163,11 @@ public class FreeformHintView extends FrameLayout {
                     adjustProgressAnimation(1f, null);
                 }
                 break;
+
+            case TRANSITION:
+                startTransitionAnimation();
+                break;
+
         }
     }
 
@@ -162,7 +181,7 @@ public class FreeformHintView extends FrameLayout {
     }
 
     public void setTaskBounds(Rect bounds) {
-        if (bounds == null||dragLayer==null) {
+        if (bounds == null) {
             mHasTaskBounds = false;
             return;
         }
@@ -174,16 +193,24 @@ public class FreeformHintView extends FrameLayout {
         }
     }
 
-    public void attachToContainer(RecentsViewContainer container) {
-        dragLayer = container.getDragLayer();
-        if (dragLayer == null || getParent() != null) return;
-
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
+    /**
+     * Initialize layout params and position after being added to DragLayer.
+     * Call once after the view is attached to its parent (DragLayer).
+     */
+    public void initLayout() {
+        // Reuse existing LayoutParams from DragLayer (InsettableFrameLayout.LayoutParams)
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
+        if (lp == null) {
+            lp = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
         lp.gravity = Gravity.TOP | Gravity.START;
-
-        dragLayer.addView(this, lp);
+        setLayoutParams(lp);
+        mIsVisible = true;
+        setVisibility(View.VISIBLE);
+        setAlpha(1f);
+        applyContentAlpha();
 
         post(() -> {
             if (getParent() != null) {
@@ -192,16 +219,89 @@ public class FreeformHintView extends FrameLayout {
         });
     }
 
-    public void detachFromContainer() {
-        cancelAnimators();
-        if (dragLayer == null || getParent() != null) return;
-        dragLayer.removeView(this);
+
+    /**
+     * Plays the transition animation from task thumbnail to pinned window position.
+     */
+    public void playTransitionToPinned(Bitmap bitmap, Rect fromRect, Rect toRect,
+            float dstCornerRadiusPx, Runnable onEnd) {
+        Log.d(TAG, "playTransitionToPinned: bitmap=" + (bitmap != null) + " from=" + fromRect + " to=" + toRect + " radius=" + dstCornerRadiusPx);
+        fromRect = new Rect(fromRect.left - (int) mCardMargin, fromRect.top - (int) mCardMargin, fromRect.right + (int) mCardMargin, fromRect.bottom + (int) mCardMargin);
+        mTaskBitmap = bitmap;
+        mTransitionFromRect.set(fromRect);
+        mTransitionToRect.set(toRect);
+        float density = getResources().getDisplayMetrics().density;
+        mTransitionSrcCornerRadius = 28f * density;
+        mTransitionDstCornerRadius = dstCornerRadiusPx;
+        mCurrentTransitionCornerRadius = mTransitionSrcCornerRadius;
+        mTransitionOnEnd = onEnd;
+        mContentAlpha = 0f;
+        applyContentAlpha();
+        mIconView.setAlpha(0f);
+        mIconView.setVisibility(View.INVISIBLE);
+
+        // Position and size the view to match the source rect
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
+        if (lp == null) {
+            lp = new FrameLayout.LayoutParams(fromRect.width(), fromRect.height());
+        }
+        lp.gravity = Gravity.TOP | Gravity.START;
+        lp.leftMargin = fromRect.left;
+        lp.topMargin = fromRect.top;
+        lp.width = fromRect.width();
+        lp.height = fromRect.height();
+        setLayoutParams(lp);
+        setScaleX(1f);
+        setScaleY(1f);
+        setAlpha(1f);
+
+        Log.d(TAG, "playTransitionToPinned: calling setPhase(TRANSITION)");
+        setPhase(HintPhase.TRANSITION);
     }
 
-    public void destroy() {
-        detachFromContainer();
+    private void startTransitionAnimation() {
+        Log.d(TAG, "startTransitionAnimation: from " + mTransitionFromRect + " to " + mTransitionToRect);
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
+        if (lp != null) {
+            mTransitionStartMargins[0] = lp.leftMargin;
+            mTransitionStartMargins[1] = lp.topMargin;
+            mTransitionStartSize[0] = lp.width;
+            mTransitionStartSize[1] = lp.height;
+        } else {
+            mTransitionStartMargins[0] = mTransitionFromRect.left;
+            mTransitionStartMargins[1] = mTransitionFromRect.top;
+            mTransitionStartSize[0] = mTransitionFromRect.width();
+            mTransitionStartSize[1] = mTransitionFromRect.height();
+        }
+        mTransitionProgress = 0f;
+        adjustTransitionAnimation(1f);
     }
 
+    private void adjustTransitionAnimation(float target) {
+        if (mProgressAnimator != null) mProgressAnimator.cancel();
+        mProgressAnimator = ValueAnimator.ofFloat(mTransitionProgress, target);
+        mProgressAnimator.setInterpolator(Interpolators.FAST_OUT_SLOW_IN);
+        mProgressAnimator.setDuration(350);
+        mProgressAnimator.addUpdateListener(a -> {
+            mTransitionProgress = (float) a.getAnimatedValue();
+            updatePositionAndSize();
+            invalidate();
+        });
+        mProgressAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mTaskBitmap = null;
+                if (mTransitionOnEnd != null) {
+                    mTransitionOnEnd.run();
+                    mTransitionOnEnd = null;
+                    initLayout();
+                    mPhase = HintPhase.HIDDEN;
+                    mIconView.setVisibility(View.VISIBLE);
+                }
+            }
+        });
+        mProgressAnimator.start();
+    }
 
     private void adjustProgressAnimation(float target, Runnable onEnd) {
         if (mProgressAnimator != null) mProgressAnimator.cancel();
@@ -264,17 +364,16 @@ public class FreeformHintView extends FrameLayout {
     }
 
     private void applyContentAlpha() {
-        contentAlpha = (mPhase == HintPhase.EXPAND)
+        mContentAlpha = (mPhase == HintPhase.EXPAND)
                 ? Math.max(0f, 1f - mExpandProgress)
                 : 1f;
 
         // Icon – handled by the child ImageView
         if (mIconView != null) {
-            int iconAlpha = (int) (255 * mHintAlpha * contentAlpha);
+            int iconAlpha = (int) (255 * mHintAlpha * mContentAlpha);
             mIconView.setAlpha(iconAlpha / 255f);  // setAlpha expects 0..1
         }
 
-        // Text – will be drawn in onDraw, so just invalidate
         invalidate();
     }
 
@@ -301,6 +400,23 @@ public class FreeformHintView extends FrameLayout {
         if (!mIsVisible && mHintAlpha == 0f
                 && mVisibilityAnimator == null && mProgressAnimator == null) {
             setMeasuredDimension(0, 0);
+            return;
+        }
+
+        // TRANSITION: interpolate size between start and toRect
+        if (mPhase == HintPhase.TRANSITION) {
+            if (mTransitionProgress > 0f) {
+                int mw = (int) (mTransitionStartSize[0] + (mTransitionToRect.width() - mTransitionStartSize[0] + 2 * mCardMargin) * mTransitionProgress);
+                int mh = (int) (mTransitionStartSize[1] + (mTransitionToRect.height() - mTransitionStartSize[1] + 2 * mCardMargin) * mTransitionProgress);
+                setMeasuredDimension(Math.max(mw, 1), Math.max(mh, 1));
+            } else {
+                FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
+                if (lp != null && lp.width > 0 && lp.height > 0) {
+                    setMeasuredDimension(lp.width, lp.height);
+                } else {
+                    setMeasuredDimension(0, 0);
+                }
+            }
             return;
         }
 
@@ -334,6 +450,25 @@ public class FreeformHintView extends FrameLayout {
 	}
 
     private void updatePositionAndSize() {
+        // TRANSITION: interpolate toward toRect via mTransitionProgress
+        if (mPhase == HintPhase.TRANSITION) {
+            int l = (int) (mTransitionStartMargins[0] + (mTransitionToRect.left - mTransitionStartMargins[0]) * mTransitionProgress);
+            int t = (int) (mTransitionStartMargins[1] + (mTransitionToRect.top - mTransitionStartMargins[1]) * mTransitionProgress);
+            int cw = (int) (mTransitionStartSize[0] + (mTransitionToRect.width() - mTransitionStartSize[0]) * mTransitionProgress);
+            int ch = (int) (mTransitionStartSize[1] + (mTransitionToRect.height() - mTransitionStartSize[1]) * mTransitionProgress);
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
+            if (lp != null) {
+                lp.gravity = Gravity.TOP | Gravity.START;
+                lp.leftMargin = l;
+                lp.topMargin = t;
+                lp.width = Math.max(cw, 1);
+                lp.height = Math.max(ch, 1);
+                setLayoutParams(lp);
+            }
+            invalidate();
+            return;
+        }
+
         ViewGroup parent = (ViewGroup) getParent();
         if (parent == null || parent.getWidth() <= 0) return;
 
@@ -389,29 +524,29 @@ public class FreeformHintView extends FrameLayout {
         return id > 0 ? getResources().getDimensionPixelSize(id) : (int) (48 * getResources().getDisplayMetrics().density);
     }
 
-private void getSmallCardPos(int pw, int ph, int cw, int ch, int[] out) {
-    int sbH = statusBarHeight();
-    int nbH = navigationBarHeight();
-    
-    switch (mRotation) {
-        case ROTATION_270:
-            out[0] = mCardMargin + sbH;
-            out[1] = mCardMargin;
-            break;
-        case ROTATION_90:
-            out[0] = pw - ch - mCardMargin - sbH;
-            out[1] = ph - cw - mCardMargin;
-            break;
-        case ROTATION_180:
-            out[0] = pw - ch - mCardMargin;
-            out[1] = ph - ch - mCardMargin - nbH;
-            break;
-        default: // ROTATION_0
-            out[0] = pw - cw - mCardMargin;
-            out[1] = mCardMargin + sbH;
-            break;
+    private void getSmallCardPos(int pw, int ph, int cw, int ch, int[] out) {
+        int sbH = statusBarHeight();
+        int nbH = navigationBarHeight();
+
+        switch (mRotation) {
+            case ROTATION_270:
+                out[0] = mCardMargin + sbH;
+                out[1] = mCardMargin;
+                break;
+            case ROTATION_90:
+                out[0] = pw - ch - mCardMargin - sbH;
+                out[1] = ph - cw - mCardMargin;
+                break;
+            case ROTATION_180:
+                out[0] = pw - ch - mCardMargin;
+                out[1] = ph - ch - mCardMargin - nbH;
+                break;
+            default: // ROTATION_0
+                out[0] = pw - cw - mCardMargin;
+                out[1] = mCardMargin + sbH;
+                break;
+        }
     }
-}
 
     @Override
     protected void onDraw(@NonNull Canvas canvas) {
@@ -422,6 +557,29 @@ private void getSmallCardPos(int pw, int ph, int cw, int ch, int[] out) {
         int w = getWidth();
         int h = getHeight();
         if (w <= 0 || h <= 0) return;
+        if (mPhase == HintPhase.TRANSITION && mTaskBitmap != null) {
+            canvas.save();
+            float cr = mTransitionSrcCornerRadius + (mTransitionDstCornerRadius - mTransitionSrcCornerRadius) * mTransitionProgress;
+            RectF cardRect = new RectF(0, 0, w, h);
+            Path clip = new Path();
+            clip.addRoundRect(cardRect, cr, cr, Path.Direction.CW);
+            canvas.clipPath(clip);
+            mBgPaint.setAlpha(255);
+            canvas.drawRoundRect(cardRect, cr, cr, mBgPaint);
+
+            int bmLeft = (int) (mCardMargin * (1 - mTransitionProgress));
+            int bmTop = (int) (mCardMargin * (1 - mTransitionProgress));
+            int bmRight = w - bmLeft;
+            int bmBottom = h - bmTop;
+            float bmCr = Math.max(0, cr - mCardMargin * (1 - mTransitionProgress));
+            RectF bmRect = new RectF(bmLeft, bmTop, bmRight, bmBottom);
+            Path bmClip = new Path();
+            bmClip.addRoundRect(bmRect, bmCr, bmCr, Path.Direction.CW);
+            canvas.clipPath(bmClip);
+            canvas.drawBitmap(mTaskBitmap, null, bmRect, null);
+            canvas.restore();
+            return;
+        }
 
         // Background opacity
         int bgAlpha = (int) (255 * mHintAlpha);
@@ -431,10 +589,10 @@ private void getSmallCardPos(int pw, int ph, int cw, int ch, int[] out) {
         canvas.drawRoundRect(mCardRect, mCornerRadius, mCornerRadius, mBgPaint);
         canvas.save();
 
-		if (contentAlpha > 0f && mDisplayText != null) {
+		if (mContentAlpha > 0f && mDisplayText != null) {
 			canvas.save();
 			
-			int textAlpha = (int) (255 * mHintAlpha * contentAlpha);
+			int textAlpha = (int) (255 * mHintAlpha * mContentAlpha);
 			mTextPaint.setAlpha(textAlpha);
 			float logicalW = (mRotation == ROTATION_90 || mRotation == ROTATION_270) ? h : w;
 			float logicalH = (mRotation == ROTATION_90 || mRotation == ROTATION_270) ? w : h;

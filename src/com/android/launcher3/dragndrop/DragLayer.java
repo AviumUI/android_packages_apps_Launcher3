@@ -38,6 +38,7 @@ import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.view.animation.Interpolator;
@@ -60,10 +61,12 @@ import com.android.launcher3.folder.Folder;
 import com.android.launcher3.graphics.Scrim;
 import com.android.launcher3.keyboard.ViewGroupFocusHelper;
 import com.android.launcher3.views.BaseDragLayer;
+import com.android.quickstep.views.FreeformHintView;
 import com.android.systemui.plugins.shared.LauncherOverlayManager.LauncherOverlayCallbacks;
 
 import java.util.ArrayList;
 import android.util.Log;
+import com.android.launcher3.InsettableFrameLayout;
 
 /**
  * A ViewGroup that coordinates dragging across its descendants
@@ -97,6 +100,7 @@ public class DragLayer extends BaseDragLayer<Launcher> implements LauncherOverla
     // Related to adjacent page hints
     private final ViewGroupFocusHelper mFocusIndicatorHelper;
     private Scrim mWorkspaceDragScrim;
+    private FreeformHintView mFreeformHintView;
 
     /**
      * Used to create a new DragLayer from XML.
@@ -123,6 +127,12 @@ public class DragLayer extends BaseDragLayer<Launcher> implements LauncherOverla
         recreateControllers();
         mWorkspaceDragScrim = new Scrim(this);
         workspace.addOverlayCallback(this);
+
+        mFreeformHintView = new FreeformHintView(getContext());
+        addView(mFreeformHintView, new InsettableFrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        mFreeformHintView.initLayout();
     }
 
     @Override
@@ -133,6 +143,27 @@ public class DragLayer extends BaseDragLayer<Launcher> implements LauncherOverla
 
     public ViewGroupFocusHelper getFocusIndicatorHelper() {
         return mFocusIndicatorHelper;
+    }
+
+    public FreeformHintView getFreeformHintView() {
+        if (mFreeformHintView == null || mFreeformHintView.getParent() == null) {
+            ensureFreeformHintView();
+        }
+        return mFreeformHintView;
+    }
+
+    /**
+     * Ensures FreeformHintView exists, recreates it if it was removed.
+     */
+    public FreeformHintView ensureFreeformHintView() {
+        if (mFreeformHintView == null || mFreeformHintView.getParent() == null) {
+            mFreeformHintView = new FreeformHintView(getContext());
+            addView(mFreeformHintView, new InsettableFrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            mFreeformHintView.initLayout();
+        }
+        return mFreeformHintView;
     }
 
     @Override

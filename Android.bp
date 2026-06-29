@@ -461,6 +461,7 @@ android_library {
         "tinypinyin-android-asset-lexicons",
         "tinypinyin-lexicons-android-cncity",
         "org.lineageos.platform",
+        "SettingsLibSettingsTheme",
     ],
     manifest: "AndroidManifest-common.xml",
     sdk_version: "current",
@@ -507,7 +508,8 @@ android_app {
         enabled: false,
     },
 
-    sdk_version: "current",
+    // sdk_version: "current",
+    platform_apis: true,
     min_sdk_version: min_launcher3_sdk_version,
     target_sdk_version: "current",
     plugins: ["dagger2-compiler"],
